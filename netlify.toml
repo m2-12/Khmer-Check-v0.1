@@ -3,6 +3,16 @@
   publish = "dist"
 
 [[redirects]]
+  from = "/api/ocr-check"
+  to = "/.netlify/functions/ocr-check"
+  status = 200
+
+[[redirects]]
+  from = "/api/smart-rewrite"
+  to = "/.netlify/functions/smart-rewrite"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

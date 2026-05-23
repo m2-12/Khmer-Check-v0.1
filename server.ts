@@ -7,13 +7,13 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // Ensure the API Key of Gemini is present or log a helpful message
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-  console.warn("⚠️ Warning: GEMINI_API_KEY is not defined in the environment variables. Please add it to Secrets.");
+const apiKey = process.env.GEMINI_API_KEY || "AIzaSyBf7U9RRrndzu5DMQaocUUr_1nyzNy5mEc";
+if (!process.env.GEMINI_API_KEY) {
+  console.log("ℹ️ Info: Using provided fallback GEMINI_API_KEY.");
 }
 
 const ai = new GoogleGenAI({
-  apiKey: apiKey || "MOCK_KEY_IF_NOT_CONFIGURED",
+  apiKey: apiKey,
   httpOptions: {
     headers: {
       'User-Agent': 'aistudio-build',
@@ -43,7 +43,7 @@ async function startServer() {
         return res.status(400).json({ error: "No image base64 payload provided." });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
+      if (!apiKey || apiKey === "MOCK_KEY_IF_NOT_CONFIGURED") {
         // Safe fallback demo data if no key is configured yet
         return res.json(getDemoAnalysis(mimeType, customRules));
       }
@@ -187,7 +187,7 @@ Return the entire analysis STRICTLY formatted according to the provided JSON Sch
         return res.status(400).json({ error: "No target text supplied." });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
+      if (!apiKey || apiKey === "MOCK_KEY_IF_NOT_CONFIGURED") {
         // Mock fallback if environment key is blank
         return res.json(getDemoRewrite(text, tone, lengthMode));
       }
