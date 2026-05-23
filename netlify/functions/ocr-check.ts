@@ -12,11 +12,30 @@ const ai = new GoogleGenAI({
 });
 
 export const handler = async (event: any) => {
+  // Common CORS headers
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  };
+
+  // Support OPTIONS preflight request
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: JSON.stringify({ message: "Preflight OK" })
+    };
+  }
+
   // Support simple health check or GET
   if (event.httpMethod === "GET") {
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
       body: JSON.stringify({ status: "ok", message: "Khmer OCR Netlify Serverless Function ready" })
     };
   }
@@ -24,6 +43,7 @@ export const handler = async (event: any) => {
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
+      headers: corsHeaders,
       body: JSON.stringify({ error: "Method Not Allowed" })
     };
   }
@@ -40,7 +60,10 @@ export const handler = async (event: any) => {
     ) {
       return {
         statusCode: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
         body: JSON.stringify(getDemoAnalysis(mimeType, customRules))
       };
     }
@@ -48,7 +71,10 @@ export const handler = async (event: any) => {
     if (!apiKey || apiKey === "MOCK_KEY_IF_NOT_CONFIGURED") {
       return {
         statusCode: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        },
         body: JSON.stringify(getDemoAnalysis(mimeType, customRules))
       };
     }
@@ -192,7 +218,10 @@ Return the entire analysis STRICTLY formatted according to the provided JSON Sch
     const isLeaked = errStr.toLowerCase().includes("leaked") || errStr.toLowerCase().includes("permission_denied") || errStr.includes("403");
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
       body: JSON.stringify({
         error: isLeaked ? "API_KEY_LEAKED" : "Failed to process image.",
         details: error.message || error
