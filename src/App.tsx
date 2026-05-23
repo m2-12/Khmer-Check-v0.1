@@ -17,7 +17,8 @@ import {
 
 export default function App() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
-  const [activePanel, setActivePanel] = useState<'corrections' | 'rewrite' | 'dictionary' | 'history'>('corrections');
+  const [activePanel, setActivePanel] = useState<'corrections' | 'rewrite' | 'dictionary'>('corrections');
+  const [apiKeyError, setApiKeyError] = useState<boolean>(false);
   
   // App states
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -200,6 +201,7 @@ export default function App() {
 
       // Trigger server-side OCR and linguistic audit
       try {
+        setApiKeyError(false);
         const response = await fetch('/api/ocr-check', {
           method: 'POST',
           headers: {
@@ -212,11 +214,14 @@ export default function App() {
           })
         });
 
-        if (!response.ok) {
-          throw new Error('API server failed processing image');
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.error === 'API_KEY_LEAKED') {
+          if (data.error === 'API_KEY_LEAKED' || (data.details && String(data.details).includes('leaked'))) {
+            setApiKeyError(true);
+          }
+          throw new Error(data.details || 'API server failed processing image');
         }
 
-        const data = await response.json();
         const formattedAnalysis: PosterAnalysis = {
           id: `session_${Date.now()}`,
           fileName: file.name,
@@ -249,8 +254,12 @@ export default function App() {
           ...prev
         ]);
 
-      } catch (err) {
+      } catch (err: any) {
         console.warn("Express server for OCR is offline or static hosting (Netlify) is active. Running robust client-side simulation fallback.", err);
+        const errStr = String(err.message || err || "");
+        if (errStr.toLowerCase().includes("leaked") || errStr.toLowerCase().includes("permission_denied") || errStr.includes("403")) {
+          setApiKeyError(true);
+        }
         
         // Execute dynamic mock generator
         const formattedAnalysis = generateClientFallbackAnalysis(file.name, `${sizeInMb} MB`, base64Data, dictionary);
@@ -588,11 +597,14 @@ export default function App() {
         })
       });
 
-      if (!response.ok) {
-        throw new Error('Rewrite request failed');
+      const val = await response.json().catch(() => ({}));
+      if (!response.ok || val.error === 'API_KEY_LEAKED') {
+        if (val.error === 'API_KEY_LEAKED' || (val.details && String(val.details).includes('leaked'))) {
+          setApiKeyError(true);
+        }
+        throw new Error(val.details || 'Rewrite request failed');
       }
 
-      const val = await response.json();
       setRewriteResult({
         rewrittenText: val.rewrittenText,
         explanation: val.explanation,
@@ -600,8 +612,12 @@ export default function App() {
         benefits: val.benefits || []
       });
 
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Express server for rewrite is offline or static hosting (Netlify) is active. Running robust client-side rewrite fallback.", err);
+      const errStr = String(err.message || err || "");
+      if (errStr.toLowerCase().includes("leaked") || errStr.toLowerCase().includes("permission_denied") || errStr.includes("403")) {
+        setApiKeyError(true);
+      }
       
       let rewrittenText = rewriteInput;
       let explanation = "កែសម្រួលឃ្លាប្រយោគ និងការដកឃ្លាភាសាខ្មែរឱ្យមានភាពត្រឹមត្រូវតាមក្បួនវេយ្យាករណ៍ និងបង្កើនលទ្ធផលផ្សព្វផ្សាយ។";
@@ -743,11 +759,35 @@ export default function App() {
         ocrConfidence={analysis?.overallStats?.confidenceScore || 0}
       />
 
+      {apiKeyError && (
+        <div className="mx-4 lg:mx-6 mt-4 p-4 rounded-2xl bg-red-50 dark:bg-rose-950/20 border border-red-200 dark:border-rose-900/40 text-red-800 dark:text-rose-200 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-rose-400 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-bold text-sm">កំហុសកូនសោ API (Leaked Gemini API Key Detected - Action Required)</h4>
+              <p className="text-xs text-red-700/95 dark:text-rose-300/90 mt-1 leading-relaxed">
+                កូនសោ API (Gemini API Key) របស់អ្នកត្រូវបានរារាំងដោយប្រព័ន្ធសុវត្ថិភាពរបស់ Google ព្រោះវាត្រូវបានបែកធ្លាយជាសាធារណៈ (ឧទាហរណ៍៖ ការបង្ហោះក្រមជាសកលលើ GitHub)។ 
+                <strong>ដំណោះស្រាយ៖</strong> សូមចូលទៅបង្កើត API Key ថ្មីនៅលើ <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="underline font-bold hover:text-red-900 dark:hover:text-white">Google AI Studio</a> រួចកំណត់កូនសោថ្មីនោះក្នុងប៊ូតុង <strong>Secrets</strong> នៃម៉ឺនុយ <strong>Settings</strong> នៅផ្នែកខាងលើខាងស្តាំនៃផ្ទំាំងដឹកនាំនេះ។
+              </p>
+              <p className="text-[10px] text-red-600 dark:text-rose-400 font-mono mt-1">
+                Engine Code: PERMISSION_DENIED / Leaked Key 403. Using sandbox dynamic simulator sandbox as backup.
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setApiKeyError(false)} 
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-100 hover:bg-red-200 dark:bg-rose-900/40 dark:hover:bg-rose-900/60 dark:text-rose-300 transition-colors shrink-0 max-w-fit self-start md:self-center"
+          >
+            យល់ព្រម (Dismiss)
+          </button>
+        </div>
+      )}
+
       {/* Main Body Layout Split */}
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden max-w-[1920px] mx-auto w-full">
+      <main className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden max-w-[1920px] mx-auto w-full">
         
         {/* Left Side: Canva Interactive Visual Canvas Workspace */}
-        <div className="flex-1 p-4 lg:p-6 flex flex-col overflow-y-auto">
+        <div className="flex-1 p-4 lg:p-6 flex flex-col lg:overflow-y-auto">
           {analysis && (
             <MetricCards 
               confidence={analysis.overallStats.confidenceScore}
@@ -796,7 +836,7 @@ export default function App() {
           
           {/* Workspaces Panel */}
           {activePanel === 'corrections' && (
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col lg:overflow-hidden">
               <div className="p-5 border-b border-slate-100 dark:border-zinc-800/80 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
@@ -812,7 +852,7 @@ export default function App() {
               </div>
 
               {/* Items Panel Scroller */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              <div className="flex-1 lg:overflow-y-auto p-5 space-y-5">
                 {!analysis ? (
                   <div className="text-center py-12 px-6">
                     <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 flex items-center justify-center mx-auto mb-3">
@@ -820,30 +860,8 @@ export default function App() {
                     </div>
                     <h4 className="text-sm font-bold text-slate-700 dark:text-zinc-300">មិនទាន់មានទិន្នន័យនៅឡើយទេ</h4>
                     <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1 max-w-xs mx-auto">
-                      សូមជ្រើសរើសរូបភាពគំរូខាងឆ្វេង ឬអាប់ឡូតឯកសារផ្ទាំងផ្សាយពាណិជ្ជកម្មរបស់អ្នក ដើម្បីឲ្យបញ្ញាសិប្បនិម្មិតកែអក្ខរាវិរុទ្ធខ្មែរ។
+                      សូមអាប់ឡូតរូបភាពផ្ទាំងផ្សាយពាណិជ្ជកម្មរបស់អ្នក ដើម្បីឲ្យបញ្ញាសិប្បនិម្មិតកែអក្ខរាវិរុទ្ធភាសាខ្មែរ។
                     </p>
-
-                    <div className="mt-6 border-t border-slate-100 dark:border-zinc-800 pt-6">
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest block mb-3">
-                        Quick Demo Templates
-                      </span>
-                      <div className="flex flex-col gap-2">
-                        <button 
-                          onClick={() => handleLoadSample('coffee')}
-                          className="w-full text-left text-xs bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 p-2.5 rounded-xl border border-slate-200/50 dark:border-zinc-800/50 transition-all flex items-center justify-between group"
-                        >
-                          <span className="text-slate-700 dark:text-zinc-300 font-semibold">☕ កាហ្វេនិងភេសជ្ជៈ (Coffee Poster)</span>
-                          <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                        </button>
-                        <button 
-                          onClick={() => handleLoadSample('cosmetics')}
-                          className="w-full text-left text-xs bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 p-2.5 rounded-xl border border-slate-200/50 dark:border-zinc-800/50 transition-all flex items-center justify-between group"
-                        >
-                          <span className="text-slate-700 dark:text-zinc-300 font-semibold">💄 គ្រឿងសម្អាងប្រណីត (Cosmetic ad)</span>
-                          <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 ) : (
                   <>
@@ -1071,7 +1089,7 @@ export default function App() {
 
           {/* Rewrite and Slogan Modes */}
           {activePanel === 'rewrite' && (
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col lg:overflow-hidden">
               <div className="p-5 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/30">
                 <div className="flex items-center gap-2">
                   <Sliders className="w-4 h-4 text-violet-600" />
@@ -1084,7 +1102,7 @@ export default function App() {
                 </p>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-5 space-y-6">
+              <div className="flex-1 lg:overflow-y-auto p-5 space-y-6">
                 
                 {/* Text Area */}
                 <div className="space-y-2">
@@ -1222,7 +1240,7 @@ export default function App() {
 
           {/* Dictionary Panel */}
           {activePanel === 'dictionary' && (
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col lg:overflow-hidden">
               <div className="p-5 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/30">
                 <div className="flex items-center gap-2">
                   <BookOpen className="w-4 h-4 text-violet-600" />
@@ -1235,7 +1253,7 @@ export default function App() {
                 </p>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              <div className="flex-1 lg:overflow-y-auto p-5 space-y-5">
                 
                 {/* Form to insert dictionary terms */}
                 <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/20 space-y-3">
@@ -1381,57 +1399,6 @@ export default function App() {
                 </div>
 
               </div>
-            </div>
-          )}
-
-          {/* History System Panels */}
-          {activePanel === 'history' && (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="p-5 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/30">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-violet-600" />
-                  <h3 className="font-bold text-sm text-slate-800 dark:text-zinc-200 uppercase tracking-widest">
-                    ប្រវត្តិការរចនា និងត្រួតពិនិត្យ (Audit History)
-                  </h3>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  Re-visit previously analyzed flyers, banners or posters
-                </p>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                {history.map((record) => (
-                  <div
-                    key={record.id}
-                    className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="w-12 h-12 rounded-lg bg-indigo-50 dark:bg-zinc-800 font-bold text-xl text-indigo-700 dark:text-indigo-300 flex items-center justify-center shrink-0">
-                        📁
-                      </div>
-                      <div className="overflow-hidden">
-                        <h4 className="font-bold text-xs text-slate-800 dark:text-zinc-200 truncate" title={record.name}>
-                          {record.name}
-                        </h4>
-                        <span className="text-[10px] text-slate-400 block mt-0.5">
-                          {record.createdAt}
-                        </span>
-                        <span className="text-[10px] text-red-500 bg-red-50 dark:bg-red-950/40 px-1.5 py-0.5 rounded font-mono inline-block mt-1">
-                          {record.grammarIssuesCount} issues flagged
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <span className="text-[10px] text-slate-400 uppercase tracking-widest block mb-0.5">SCORE</span>
-                      <span className="text-base font-mono font-bold text-emerald-600">
-                        {record.score}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
             </div>
           )}
 

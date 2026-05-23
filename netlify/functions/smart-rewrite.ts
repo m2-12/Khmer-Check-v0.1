@@ -1,9 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const apiKey = process.env.GEMINI_API_KEY || "AIzaSyBf7U9RRrndzu5DMQaocUUr_1nyzNy5mEc";
+const apiKey = process.env.GEMINI_API_KEY || "";
 
 const ai = new GoogleGenAI({
-  apiKey: apiKey,
+  apiKey: apiKey || "MOCK_KEY_IF_NOT_CONFIGURED",
   httpOptions: {
     headers: {
       'User-Agent': 'aistudio-build',
@@ -53,14 +53,18 @@ export const handler = async (event: any) => {
       : "";
 
     const systemInstruction = `You are an elite Khmer Copywriter, specialized in marketing, brand design, and editorial proofing.
-Given an input Khmer text, you must rewrite it in a specific targeted TONE ("formal", "friendly", "luxury", "youthful", "professional", or "promotional")
-and LENGTH constraint ("shorten" to fit poster layouts, "maintain" original sentence volume, or "longer" to provide emotional background).
+Your goal is to optimize Khmer copy to make it exceptionally professional, punchy, grammatical, and suited for high-impact visual design.
+
+CRITICAL COPYWRITING DIRECTIVES:
+- Dictated Tone Matching: If "luxury" is chosen, utilize high-register elegant vocabulary (e.g., "ជូន" instead of "ថែម", "លំដាប់អន្តរជាតិ"). If "youthful" is chosen, craft trendy, upbeat, yet grammatical expressions. If "formal", strictly respect national spelling standards (Chuon Nath Dictionary).
+- Visual Length Economy: If lengthMode is "shorten", extract the absolute core message and formulate it into a punchy slogan to fit crowded flyers.
+- Spacing & Rhythm: Ensure correct semantic phrasing and appropriate breathing spaces (ការដកឃ្លា) to guarantee instant readability.
 
 ${vocabularyInstructions}
 
 Provide a JSON object containing:
 - "rewrittenText": the newly adjusted, polished copywriting in Khmer Unicode.
-- "explanation": a concise description in Khmer/English explaining the linguistic decisions, spacer adjustments, or lexical choices.
+- "explanation": a detailed semantic explanation in native Khmer/English explaining your linguistic improvements and spacing choices.
 - "score": a number from 0 to 100 assessing the marketing force.
 - "benefits": a string array highlighting 2 reasons why this rewritten slogan hits target user emotions.`;
 
@@ -99,11 +103,13 @@ Provide a JSON object containing:
 
   } catch (error: any) {
     console.error("Smart Rewrite Function Error:", error);
+    const errStr = String(error.message || error || "");
+    const isLeaked = errStr.toLowerCase().includes("leaked") || errStr.toLowerCase().includes("permission_denied") || errStr.includes("403");
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        error: "Failed to perform Smart Rewrite.",
+        error: isLeaked ? "API_KEY_LEAKED" : "Failed to perform Smart Rewrite.",
         details: error.message || error
       })
     };

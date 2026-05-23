@@ -231,53 +231,6 @@ export default function CanvaWorkspace({
                 ជ្រើសរើសរូបភាព (Browse Poster)
               </button>
             </div>
-
-            {/* Premium Template Showcase */}
-            <div className="w-full mt-8">
-              <h5 className="text-xs font-bold font-mono tracking-wide text-zinc-400 dark:text-zinc-500 mb-3 text-center uppercase flex items-center justify-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Or select a demo advertisement banner
-              </h5>
-              <div className="grid grid-cols-3 gap-4">
-                <button
-                  onClick={() => onLoadSample('coffee')}
-                  className="bg-white dark:bg-zinc-900 p-2.5 rounded-2xl border border-zinc-200/60 dark:border-zinc-800 hover:border-violet-400 dark:hover:border-violet-800 hover:scale-102 hover:shadow-md transition-all text-left flex items-center gap-3"
-                >
-                  <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-600 shrink-0 font-bold text-lg">
-                    ☕
-                  </div>
-                  <div className="overflow-hidden">
-                    <div className="text-xs font-bold text-zinc-900 dark:text-white truncate">កាហ្វេដកឃ្លាខុស</div>
-                    <div className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">ទិញ1ថែម1 ឆាប់ឡើង!!</div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => onLoadSample('cosmetics')}
-                  className="bg-white dark:bg-zinc-900 p-2.5 rounded-2xl border border-zinc-200/60 dark:border-zinc-800 hover:border-violet-400 dark:hover:border-violet-800 hover:scale-102 hover:shadow-md transition-all text-left flex items-center gap-3"
-                >
-                  <div className="w-12 h-12 bg-pink-500/10 rounded-xl flex items-center justify-center text-pink-600 shrink-0 font-bold text-lg">
-                    💄
-                  </div>
-                  <div className="overflow-hidden">
-                    <div className="text-xs font-bold text-zinc-900 dark:text-white truncate">គ្រឿងសម្អាងសរសេរខុស</div>
-                    <div className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">ឡេលាបក្លៀកកម្ចាត់ក្លិន</div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => onLoadSample('event')}
-                  className="bg-white dark:bg-zinc-900 p-2.5 rounded-2xl border border-zinc-200/60 dark:border-zinc-800 hover:border-violet-400 dark:hover:border-violet-800 hover:scale-102 hover:shadow-md transition-all text-left flex items-center gap-3"
-                >
-                  <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-600 shrink-0 font-bold text-lg">
-                    🎉
-                  </div>
-                  <div className="overflow-hidden">
-                    <div className="text-xs font-bold text-zinc-900 dark:text-white truncate">ខនសឺតរដូវក្តៅ</div>
-                    <div className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">ជួបគ្នានៅមហោស្រប</div>
-                  </div>
-                </button>
-              </div>
-            </div>
           </div>
         )}
       </div>

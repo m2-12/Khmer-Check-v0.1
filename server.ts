@@ -7,13 +7,13 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // Ensure the API Key of Gemini is present or log a helpful message
-const apiKey = process.env.GEMINI_API_KEY || "AIzaSyBf7U9RRrndzu5DMQaocUUr_1nyzNy5mEc";
-if (!process.env.GEMINI_API_KEY) {
-  console.log("ℹ️ Info: Using provided fallback GEMINI_API_KEY.");
+const apiKey = process.env.GEMINI_API_KEY || "";
+if (!apiKey) {
+  console.warn("⚠️ Warning: GEMINI_API_KEY is not defined in the environment variables. Mock fallbacks will be used.");
 }
 
 const ai = new GoogleGenAI({
-  apiKey: apiKey,
+  apiKey: apiKey || "MOCK_KEY_IF_NOT_CONFIGURED",
   httpOptions: {
     headers: {
       'User-Agent': 'aistudio-build',
@@ -39,8 +39,14 @@ async function startServer() {
     try {
       const { imageBase64, mimeType = "image/png", customRules = [] } = req.body;
 
-      if (!imageBase64) {
-        return res.status(400).json({ error: "No image base64 payload provided." });
+      if (
+        !imageBase64 ||
+        imageBase64 === "https://example.com/placeholder-trigger-for-mock" ||
+        imageBase64.startsWith("http://") ||
+        imageBase64.startsWith("https://")
+      ) {
+        // Safe fallback demo data
+        return res.json(getDemoAnalysis(mimeType, customRules));
       }
 
       if (!apiKey || apiKey === "MOCK_KEY_IF_NOT_CONFIGURED") {
@@ -63,25 +69,34 @@ async function startServer() {
         : "";
 
       // Construct a highly detailed OCR + Grammar checking instruction set for Gemini
-      const systemInstruction = `You are a professional Khmer language expert, typographer, and digital poster editor.
-Your task is to analyze the uploaded image (poster, flyer, ad banner, or social media post), identify ALL visible text (specifically focusing on Khmer language, and any mixed English words), estimate their approximate positions for layering highlights, and perform deep language and design analysis.
+      const systemInstruction = `You are a professional Khmer language expert, senior typographer, and elite digital poster copywriter/proofreader.
+Your task is to analyze the uploaded poster/banner/flyer image, capture ALL visible text (in Khmer and any auxiliary English or numeric layers), map their coordinates, and run a rigorous grammar, spelling, spacing, and typographic audit.
 
-For each Khmer word, phrase, or sentence, perform rigorous analyses on:
-1. Spelling mistakes: correct written forms and check subscript sequences.
-2. Space errors: Khmer is usually written without word spaces, except after punctuation, clauses, or for breathing room. Alert if spacings break semantic words or appear crowded.
-3. Typography consistency: warn if modern stylized curved fonts make it unreadable, or diacritics sit awkwardly, or Unicode ordering is broken (leading to red blocks or broken diacritics).
-4. Tone & Marketing copywriting impact: give better creative copy options styled for posters (headlines, hooky calls to action).
+CRITICAL LINGUISTIC & TYPOGRAPHIC DIRECTIVES:
+1. SOURCING & DICTIONARY AUTHORITY:
+   - Your primary spelling reference must be Samdech Chuon Nath Dictionary (វចនានុក្រមសម្ដេចព្រះសង្ឃរាជ ជួន ណាត).
+   - Ensure consonant subscript sequences (ជើងអក្សរ) are correctly specified. Catch lazy shorthand phonetic patterns and correct them (e.g. 'ផ្នើ' vs 'ផ្ញើ').
 
-Provide boundingbox percentage values (0 - 100 relative to poster container width & height) where:
-- x represents the starting horizontal position from left edge.
-- y represents the starting vertical position from top edge.
-- width represents the horizontal coverage.
-- height represents the vertical coverage.
-Do your best to align these coordinates visually with the words present in the image.
+2. TYPOGRAPHY AND UNICODE ORDERING:
+   - Examine the hidden rendering mechanics. Designers often type Khmer glyphs incorrectly in the background, causing broken diacritics, orphaned subscripts, or overlapping symbols (evident visually by red blocks or a gray dotted circle ◌ under vowels or diacritics).
+   - Strict Unicode character sequence: Consonant + Subscript + Robat + Vowel (Srak) + Diacritic. Alert if visual placement seems correct but the character stream is invalid.
+
+3. SPACING & PHRASING EXCELLENCE (ការដកឃ្លា):
+   - Khmer does not utilize spaces between every word, but rather between syntactic clauses, ideas, and punctuation.
+   - Detect "Word Splitting" errors: when designers accidentally put empty spaces in the middle of a continuous word due to automated line wrapping or manual typesetting (e.g. 'កា ហ្វេរ' or 'សេ វាកម្ម' instead of 'កាហ្វេ' or 'សេវាកម្ម').
+   - Identify "Missing Breathability" errors: blocks with zero spaces that look excessively packed and require elegant structural spacing to be visually pleasing on a high-end designer banner.
+
+4. COPYWRITING & MARKETING TONE:
+   - Provide highly catchy, polished, professional copywriting alternatives (headings, subheadings, or hooks) that better fit the visual theme of the poster and respect proper Khmer syntax.
+
+5. METICULOUS DOUBLE-PASS IMAGE SCAN (OCR PRECISENESS):
+   - You must scan the entire visual field from top-to-bottom and left-to-right.
+   - DO NOT omit small text markers like phone numbers (e.g., 012-345-678), prices ($1.5, 5000៛), percentages (50%), addresses, hashtags, or social handles. Capture and audit them regardless of size.
+   - Carefully map boundingbox coordinates as percentage offsets relative to the image size (x: starting point from left, y: starting point from top, width: text width, height: text height).
 
 ${rulesPromptSegment}
 
-Return the entire analysis STRICTLY formatted according to the provided JSON Schema. Do not wrap in markdown text blocks outside the JSON itself. Make explanations helpful and descriptive. Use elegant Khmer or English for explanation fields. Ensure all text outputs use standard, normalized Khmer Unicode.`;
+Return the entire analysis STRICTLY formatted according to the provided JSON Schema. Do not wrap in markdown text blocks outside the JSON itself. Make explanations extremely descriptive. Ensure all text outputs use normalized standard Khmer Unicode.`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.5-flash",
@@ -171,8 +186,10 @@ Return the entire analysis STRICTLY formatted according to the provided JSON Sch
 
     } catch (error: any) {
       console.error("OCR and Correction API Error:", error);
+      const errStr = String(error.message || error || "");
+      const isLeaked = errStr.toLowerCase().includes("leaked") || errStr.toLowerCase().includes("permission_denied") || errStr.includes("403");
       res.status(500).json({
-        error: "Failed to process image.",
+        error: isLeaked ? "API_KEY_LEAKED" : "Failed to process image.",
         details: error.message || error
       });
     }
@@ -197,14 +214,18 @@ Return the entire analysis STRICTLY formatted according to the provided JSON Sch
         : "";
 
       const systemInstruction = `You are an elite Khmer Copywriter, specialized in marketing, brand design, and editorial proofing.
-Given an input Khmer text, you must rewrite it in a specific targeted TONE ("formal", "friendly", "luxury", "youthful", "professional", or "promotional")
-and LENGTH constraint ("shorten" to fit poster layouts, "maintain" original sentence volume, or "longer" to provide emotional background).
+Your goal is to optimize Khmer copy to make it exceptionally professional, punchy, grammatical, and suited for high-impact visual design.
+
+CRITICAL COPYWRITING DIRECTIVES:
+- Dictated Tone Matching: If "luxury" is chosen, utilize high-register elegant vocabulary (e.g., "ជូន" instead of "ថែម", "លំដាប់អន្តរជាតិ"). If "youthful" is chosen, craft trendy, upbeat, yet grammatical expressions. If "formal", strictly respect national spelling standards (Chuon Nath Dictionary).
+- Visual Length Economy: If lengthMode is "shorten", extract the absolute core message and formulate it into a punchy slogan to fit crowded flyers.
+- Spacing & Rhythm: Ensure correct semantic phrasing and appropriate breathing spaces (ការដកឃ្លា) to guarantee instant readability.
 
 ${vocabularyInstructions}
 
 Provide a JSON object containing:
 - "rewrittenText": the newly adjusted, polished copywriting in Khmer Unicode.
-- "explanation": a concise description in Khmer/English explaining the linguistic decisions, spacer adjustments, or lexical choices.
+- "explanation": a detailed semantic explanation in native Khmer/English explaining your linguistic improvements and spacing choices.
 - "score": a number from 0 to 100 assessing the marketing force.
 - "benefits": a string array highlighting 2 reasons why this rewritten slogan hits target user emotions.`;
 
@@ -235,8 +256,10 @@ Provide a JSON object containing:
 
     } catch (error: any) {
       console.error("Smart Rewrite API Error:", error);
+      const errStr = String(error.message || error || "");
+      const isLeaked = errStr.toLowerCase().includes("leaked") || errStr.toLowerCase().includes("permission_denied") || errStr.includes("403");
       res.status(500).json({
-        error: "Failed to perform Smart Rewrite.",
+        error: isLeaked ? "API_KEY_LEAKED" : "Failed to perform Smart Rewrite.",
         details: error.message || error
       });
     }

@@ -4,6 +4,37 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>អក្សរាការ - Khmer Poster Proofing & Grammar Audit Tool</title>
+    <script>
+      // Defensive patch for sandboxed environments where window.fetch is getter-only on Window.prototype
+      (function() {
+        try {
+          const originalFetch = window.fetch;
+          let currentFetch = originalFetch;
+          
+          const descriptor = {
+            get() {
+              return currentFetch;
+            },
+            set(value) {
+              currentFetch = value;
+            },
+            configurable: true,
+            enumerable: true
+          };
+          
+          // Define standard writable getter/setter on window directly to shadow any prototype getter-only properties safely
+          Object.defineProperty(window, 'fetch', descriptor);
+          if (typeof globalThis !== 'undefined') {
+            Object.defineProperty(globalThis, 'fetch', descriptor);
+          }
+          if (typeof self !== 'undefined') {
+            Object.defineProperty(self, 'fetch', descriptor);
+          }
+        } catch (e) {
+          console.warn("Defensive fetch patch skipped:", e);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
