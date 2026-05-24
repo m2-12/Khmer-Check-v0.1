@@ -155,7 +155,7 @@ export default function MetricCards({
             <span className="text-[10px] font-bold uppercase tracking-widest text-[#587E6A] dark:text-zinc-400 block truncate">
               Visual Narrative Vibe
             </span>
-            <div className="text-xs sm:text-sm font-bold text-[#2D3330] dark:text-white mt-1 capitalize truncate font-heading" title={layoutAdvice.aestheticVibeMatch}>
+            <div className="text-xs sm:text-sm font-bold text-[#2D3330] dark:text-white mt-1 capitalize whitespace-normal break-words font-heading" title={layoutAdvice.aestheticVibeMatch}>
               {layoutAdvice.aestheticVibeMatch}
             </div>
           </div>
@@ -166,7 +166,7 @@ export default function MetricCards({
 
         <div className="mt-3 text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 bg-[#FAF7F2] dark:bg-zinc-950 p-2 sm:p-2.5 rounded-xl border border-[#ECE7DC]/50 dark:border-zinc-800/60 min-w-0">
           <AlertTriangle className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${layoutAdvice.hasOverlapIssue ? 'text-[#DDAE3B] animate-pulse' : 'text-[#587E6A]'}`} />
-          <span className="truncate text-[10px] font-sans font-medium" title={layoutAdvice.overlapDetails || "No text overlapping coordinates reported!"}>
+          <span className="whitespace-normal break-words text-[10px] font-sans font-medium" title={layoutAdvice.overlapDetails || "No text overlapping coordinates reported!"}>
             {layoutAdvice.overlapDetails || "No overlap text clashing."}
           </span>
         </div>

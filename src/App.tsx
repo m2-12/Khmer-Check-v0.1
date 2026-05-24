@@ -733,14 +733,14 @@ export default function App() {
           setSelectedItemId(null);
         }}
         hasData={!!analysis}
-        ocrConfidence={analysis ? analysis.overallStats.grammarSpacerScore : 0}
+        ocrConfidence={analysis ? analysis.overallStats.confidenceScore : 0}
       />
 
-      <main className="flex-1 flex flex-col lg:flex-row min-w-0 bg-[#FAF7F2] dark:bg-[#121614]">
+      <main className="flex-1 flex flex-col lg:flex-row min-w-0 bg-[#FAF7F2] dark:bg-[#121614] lg:h-[calc(100vh-73px)] lg:overflow-hidden">
         {/* Left Side: Creative Stage, Uploader or Main Workspace Canvas */}
-        <div className="flex-1 p-6 flex flex-col min-w-0">
+        <div className="flex-1 p-6 flex flex-col min-w-0 lg:overflow-y-auto">
           <MetricCards
-            confidence={analysis ? analysis.overallStats.grammarSpacerScore : 0}
+            confidence={analysis ? analysis.overallStats.confidenceScore : 0}
             grammarScore={analysis ? analysis.overallStats.grammarSpacerScore : 0}
             marketingScore={analysis ? analysis.overallStats.marketingImpactScore : 0}
             layoutAdvice={analysis ? analysis.layoutAdvice : {
