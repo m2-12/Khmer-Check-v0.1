@@ -99,7 +99,7 @@ export const handler = async (event: any) => {
       : "";
 
     const systemInstruction = `You are a professional Khmer language expert, senior typographer, and elite digital poster copywriter/proofreader.
-Your task is to analyze the uploaded poster/banner/flyer image, capture ALL visible text (in Khmer and any auxiliary English or numeric layers), map their coordinates, and run a rigorous grammar, spelling, spacing, and typographic audit.
+Your task is to analyze the uploaded poster/banner/flyer image, capture absolutely ALL visible text, characters, words, numbers, and phrases (in Khmer and any auxiliary English or numeric layers), map their coordinates, and run a rigorous grammar, spelling, spacing, and typographic audit.
 
 CRITICAL LINGUISTIC & TYPOGRAPHIC DIRECTIVES:
 1. SOURCING & DICTIONARY AUTHORITY:
@@ -118,9 +118,12 @@ CRITICAL LINGUISTIC & TYPOGRAPHIC DIRECTIVES:
 4. COPYWRITING & MARKETING TONE:
    - Provide highly catchy, polished, professional copywriting alternatives (headings, subheadings, or hooks) that better fit the visual theme of the poster and respect proper Khmer syntax.
 
-5. METICULOUS DOUBLE-PASS IMAGE SCAN (OCR PRECISENESS):
-   - You must scan the entire visual field from top-to-bottom and left-to-right.
-   - DO NOT omit small text markers like phone numbers (e.g., 012-345-678), prices ($1.5, 5000៛), percentages (50%), addresses, hashtags, or social handles. Capture and audit them regardless of size.
+5. EXHAUSTIVE MULTI-GRID SCAN & OCR PRECISION:
+   - Treat this scan as an exhaustive, multi-pass grid verification. Mentally divide the visual canvas into 9 sub-sectors (Top-Left, Top-Center, Top-Right, Middle-Left, Middle-Center, Middle-Right, Bottom-Left, Bottom-Center, Bottom-Right) and traverse them meticulously.
+   - ABSOLUTELY DO NOT omit any secondary or small text elements.
+   - Detect and extract every single string: telephone numbers (e.g., '012 345 678', '016 999 888'), currency values and prices (e.g., '$2.5', '5000៛', '១០% OFF'), contact handles, addresses, operating hours, hashtags, small website URLs, and bottom disclaimers or footnotes.
+   - Scan low-contrast text, watermarked phrases, text on badges, inside circles, ribbons, buttons, or decorative background banners.
+   - Create a distinct data object inside the "items" array for every standalone line or group of text found. Do not cluster separate lines into a single item if they represent separate ideas or different positions on the canvas.
    - Carefully map boundingbox coordinates as percentage offsets relative to the image size (x: starting point from left, y: starting point from top, width: text width, height: text height).
 
 ${rulesPromptSegment}
@@ -131,7 +134,7 @@ Return the entire analysis STRICTLY formatted according to the provided JSON Sch
       model: "gemini-3.5-flash",
       contents: [
         imagePart,
-        { text: "Perform the comprehensive Khmer OCR and deep grammar check on this graphic. Analyze text placements, spellings, tones, and provide better copywriting options." }
+        { text: "Perform an exhaustive, multi-grid scan and deep linguistic OCR audit on this graphic. Analyze and capture EVERY single piece of text, including headers, small labels, phone numbers, prices, disclaimers, spellings, tones, and provide better copywriting options. Map each to its precise bounding box." }
       ],
       config: {
         systemInstruction,

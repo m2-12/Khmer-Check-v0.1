@@ -8,6 +8,8 @@ import {
 import Header from './components/Header';
 import MetricCards from './components/MetricCards';
 import CanvaWorkspace from './components/CanvaWorkspace';
+import OcrConverter from './components/OcrConverter';
+import ToneRewriter from './components/ToneRewriter';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { 
@@ -17,7 +19,7 @@ import {
 
 export default function App() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
-  const [activePanel, setActivePanel] = useState<'corrections' | 'rewrite'>('corrections');
+  const [activePanel, setActivePanel] = useState<'corrections' | 'rewrite' | 'ocr-converter'>('corrections');
   const [apiKeyError, setApiKeyError] = useState<boolean>(false);
   const [isBackendMock, setIsBackendMock] = useState<boolean | null>(null);
   
@@ -255,8 +257,8 @@ export default function App() {
     };
   };
 
-  // Helper to compress images client-side before uploading (speeds up payload transfer from ~5-10MB to <150KB)
-  const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.75): Promise<string> => {
+  // Helper to compress images client-side before uploading (speeds up payload transfer while preserving fine text details for OCR)
+  const compressImage = (file: File, maxWidth = 2000, maxHeight = 2000, quality = 0.88): Promise<string> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -736,9 +738,48 @@ export default function App() {
         ocrConfidence={analysis ? analysis.overallStats.confidenceScore : 0}
       />
 
-      <main className="flex-1 flex flex-col lg:flex-row min-w-0 bg-[#FAF7F2] dark:bg-[#121614] lg:h-[calc(100vh-73px)] lg:overflow-hidden">
+      {activePanel === 'ocr-converter' ? (
+        <div className="flex-1 overflow-y-auto bg-[#FAF7F2] dark:bg-[#121614]">
+          <OcrConverter onPasteToTone={(text) => {
+            setRewriteInput(text);
+            setActivePanel('rewrite');
+          }} />
+        </div>
+      ) : activePanel === 'rewrite' ? (
+        <div className="flex-1 overflow-y-auto bg-[#FAF7F2] dark:bg-[#121614]">
+          <ToneRewriter 
+            initialText={rewriteInput}
+            onSetInitialText={setRewriteInput}
+            isDarkMode={isDarkMode}
+          />
+        </div>
+      ) : (
+        <main className="flex-1 flex flex-col lg:flex-row min-w-0 bg-[#FAF7F2] dark:bg-[#121614] lg:h-[calc(100vh-73px)] lg:overflow-hidden">
         {/* Left Side: Creative Stage, Uploader or Main Workspace Canvas */}
         <div className="flex-1 p-6 flex flex-col min-w-0 lg:overflow-y-auto">
+          <div className="flex-1 flex flex-col min-h-[520px] mb-6">
+            <CanvaWorkspace
+              imageSrc={imageSrc}
+              onImageUploaded={handleImageUpload}
+              items={analysis ? analysis.items : []}
+              selectedItemId={selectedItemId}
+              onSelectItem={(id) => setSelectedItemId(id)}
+              isProcessing={isProcessing}
+              onLoadSample={handleLoadSample}
+            />
+          </div>
+
+          {fileName && (
+            <div className="mb-6 bg-white dark:bg-zinc-900 border border-[#ECE7DC] dark:border-zinc-800/80 px-4 py-3 rounded-xl flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+              <div className="flex items-center gap-3">
+                <span className="w-2 h-2 rounded-full bg-[#4A6D5D] animate-ping" />
+                <span>ឈ្មោះឯកសារ៖ <strong className="text-[#2D3330] dark:text-zinc-200">{fileName}</strong></span>
+                <span>ទំហំ៖ <strong>{fileSize}</strong></span>
+              </div>
+              <span className="text-[#4A6D5D] dark:text-emerald-400 font-bold bg-[#E6EFEA] dark:bg-emerald-950/20 px-2 py-0.5 rounded">ប្រព័ន្ធដំណើរការបានល្អបំផុត (Optimal)</span>
+            </div>
+          )}
+
           <MetricCards
             confidence={analysis ? analysis.overallStats.confidenceScore : 0}
             grammarScore={analysis ? analysis.overallStats.grammarSpacerScore : 0}
@@ -750,27 +791,6 @@ export default function App() {
               aestheticVibeMatch: 'Minimal'
             }}
           />
-
-          <CanvaWorkspace
-            imageSrc={imageSrc}
-            onImageUploaded={handleImageUpload}
-            items={analysis ? analysis.items : []}
-            selectedItemId={selectedItemId}
-            onSelectItem={(id) => setSelectedItemId(id)}
-            isProcessing={isProcessing}
-            onLoadSample={handleLoadSample}
-          />
-
-          {fileName && (
-            <div className="mt-4 bg-white dark:bg-zinc-900 border border-[#ECE7DC] dark:border-zinc-800/80 px-4 py-3 rounded-xl flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
-              <div className="flex items-center gap-3">
-                <span className="w-2 h-2 rounded-full bg-[#4A6D5D] animate-ping" />
-                <span>ឈ្មោះឯកសារ៖ <strong className="text-[#2D3330] dark:text-zinc-200">{fileName}</strong></span>
-                <span>ទំហំ៖ <strong>{fileSize}</strong></span>
-              </div>
-              <span className="text-[#4A6D5D] dark:text-emerald-400 font-bold bg-[#E6EFEA] dark:bg-emerald-950/20 px-2 py-0.5 rounded">ប្រព័ន្ធដំណើរការបានល្អបំផុត (Optimal)</span>
-            </div>
-          )}
         </div>
 
         {/* Right Side Control Center & AI Cognitive Panel representing "Clean Utility / Minimal" */}
@@ -958,11 +978,11 @@ export default function App() {
                         <div className="flex items-center gap-2">
                           <Sparkles className="w-4 h-4 text-amber-300" />
                           <h4 className="text-xs font-bold uppercase tracking-wider">
-                            ស្លោកផ្សាយពាណិជ្ជកម្មបន្ថែម (AI Recommendations)
+                            ការណែនាំបន្ថែម (AI Recommendations)
                           </h4>
                         </div>
                         <p className="text-[10px] text-emerald-100 leading-relaxed">
-                          Gemini has crafted these 3 high-impact ad headers matching this flyer's detected visual mood:
+                          AI បានបង្កើតចំណងជើងថ្មីដែលមានឥទ្ធិពលខ្ពស់ត្រូវនឹងការផ្សព្វផ្សាយនេះ
                         </p>
                         <div className="space-y-2 text-xs">
                           {analysis.marketingHooks.map((hook, hid) => (
@@ -1029,168 +1049,20 @@ export default function App() {
             </div>
           )}
 
-          {/* Rewrite and Slogan Modes */}
-          {activePanel === 'rewrite' && (
-            <div className="flex-1 flex flex-col lg:overflow-hidden">
-              <div className="p-5 border-b border-slate-100 dark:border-zinc-800/80 bg-[#FAF7F2] dark:bg-zinc-900/30">
-                <div className="flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-[#4A6D5D]" />
-                  <h3 className="font-bold text-xs text-[#2D3330] dark:text-zinc-200 uppercase">
-                    ការសរសេរអត្ថបទដោយប្រើ AI (Beta V1)
-                  </h3>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-0.5 uppercase">
-                  Adjust custom slogan length and brand voice matching the layout
-                </p>
-              </div>
 
-              <div className="flex-1 lg:overflow-y-auto p-5 space-y-6">
-                
-                {/* Text Area */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase">ឃ្លាភាសាដើម</label>
-                  <textarea
-                    value={rewriteInput}
-                    onChange={(e) => setRewriteInput(e.target.value)}
-                    rows={3}
-                    className="w-full p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-950/20 text-sm focus:ring-2 focus:ring-[#4A6D5D] focus:border-[#4A6D5D] focus:outline-hidden dark:text-zinc-200"
-                    placeholder="ឧទាហរណ៍៖ ទិញ1ថែម1 ឆាប់ឡើង!!"
-                  />
-                </div>
-
-                {/* Tone Select layout */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase block">ទម្រង់សម្លេងផ្សាយ (Target Tone Voice)</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { key: 'promotional', label: '📣 ផ្សព្វផ្សាយ (Promo)', desc: 'High FOMO & urgency' },
-                      { key: 'luxury', label: '💎 ប្រណីតភាព (Luxury)', desc: 'Elegant vocabulary' },
-                      { key: 'friendly', label: '🌸 ស្និទ្ធស្នាល (Friendly)', desc: 'Warm customer voice' },
-                      { key: 'youthful', label: '⚡ យុវវ័យ (Youthful)', desc: 'Modern street slang' },
-                      { key: 'formal', label: '🏛️ ផ្លូវការ (Formal)', desc: 'Standard business' },
-                      { key: 'professional', label: '📈 វិជ្ជាជីវៈ (Professional)', desc: 'Authoritative, clean' },
-                    ].map((t) => (
-                      <button
-                        key={t.key}
-                        onClick={() => setSelectedTone(t.key as ToneMode)}
-                        className={`p-2.5 rounded-xl border text-left transition-all ${
-                          selectedTone === t.key
-                            ? 'bg-gradient-to-r from-[#4A6D5D] to-[#3E5C4E] text-white border-transparent shadow-xs'
-                            : 'bg-white hover:bg-slate-50 dark:bg-zinc-900 border-slate-200/60 dark:border-zinc-800/60 dark:hover:bg-zinc-800'
-                        }`}
-                      >
-                        <div className="text-xs font-bold">{t.label}</div>
-                        <div className={`text-[9px] mt-0.5 ${selectedTone === t.key ? 'text-[#CEE2D7] dark:text-emerald-300' : 'text-slate-400'}`}>
-                          {t.desc}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Constraints Segment */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase block">ទំហំប្រវែងឃ្លា (Layout Length Constraints)</label>
-                  <div className="flex bg-slate-100 dark:bg-zinc-950 p-1 rounded-xl border border-slate-200/50 dark:border-zinc-800/60">
-                    {[
-                      { key: 'shorten', label: 'បង្រួម (Shorten)', desc: 'For tight badges' },
-                      { key: 'maintain', label: 'រក្សាដើម (Original size)', desc: '' },
-                      { key: 'longer', label: 'វែងលម្អិត (More descriptive)', desc: '' }
-                    ].map((l) => (
-                      <button
-                        key={l.key}
-                        onClick={() => setRewriteLength(l.key as any)}
-                        className={`flex-1 py-1.5 text-xs font-semibold rounded-lg text-center transition-all ${
-                          rewriteLength === l.key
-                            ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
-                            : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900'
-                        }`}
-                      >
-                        {l.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Submit Action */}
-                <button
-                  onClick={handleSmartRewrite}
-                  disabled={isRewriting}
-                  className="w-full bg-[#4A6D5D] hover:bg-[#3E5C4E] disabled:bg-[#4A6D5D]/55 text-white rounded-xl py-2.5 text-xs font-bold shadow-md shadow-[#4a6d5d]/10 flex items-center justify-center gap-2 duration-150"
-                >
-                  {isRewriting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>កំពុងរចនាឃ្លាថ្មី...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>បំលែងទម្រង់ឃ្លាភាសាខ្មែរ (Transform Khmer Slogan)</span>
-                    </>
-                  )}
-                </button>
-
-                {/* Rewrite feedback result */}
-                {rewriteResult && (
-                  <div className="p-4 rounded-2xl border border-emerald-100 dark:border-emerald-800/30 bg-emerald-50/20 dark:bg-emerald-950/10 space-y-4 animate-fade-in">
-                    <div className="flex items-center justify-between border-b border-emerald-100 dark:border-emerald-900/40 pb-2">
-                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1">
-                        <Star className="w-3.5 h-3.5 fill-amber-300 stroke-amber-400" /> Slogan rewritten output
-                      </span>
-                      <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
-                        <span>Marketing Score:</span>
-                        <span className="bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded text-xs">{rewriteResult.score}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1 relative group bg-white dark:bg-zinc-900/80 p-3.5 rounded-xl border border-emerald-100/50 dark:border-zinc-800 shadow-xs">
-                      <p className="text-lg font-bold text-slate-900 dark:text-white leading-relaxed">
-                        {rewriteResult.rewrittenText}
-                      </p>
-                      <button
-                        onClick={() => copyToClipboard(rewriteResult.rewrittenText, 'rewrite_main')}
-                        className="absolute right-2 top-2 p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-emerald-500"
-                        title="Copy text"
-                      >
-                        {copiedText === 'rewrite_main' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-400 block mb-1">Reasoning & Khmer Spacers:</span>
-                      <p className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
-                        {rewriteResult.explanation}
-                      </p>
-                    </div>
-
-                    {rewriteResult.benefits && rewriteResult.benefits.length > 0 && (
-                      <div className="space-y-1">
-                        <span className="text-[10px] uppercase font-bold text-slate-500 block">Psychological Benefits:</span>
-                        <ul className="list-disc pl-4 text-xs text-slate-500 dark:text-zinc-400 space-y-1">
-                          {rewriteResult.benefits.map((b, bIdx) => (
-                            <li key={bIdx}>{b}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Instant Design Guideline Help Footer representing clean utilities */}
           <div className="p-4 border-t border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 flex items-center gap-2.5 text-[11px] text-slate-500 dark:text-zinc-400">
             <Info className="w-4 h-4 text-[#4A6D5D] shrink-0" />
             <p className="leading-tight">
-              គាំទ្រស្តង់ដារលំហូរតួអក្សរខ្មែរយូនីកូដ (Khmer Unicode Normalization sequence correctors)។
+              គាំទ្រតួអក្សរខ្មែរយូនីកូដ (Khmer Unicode)
             </p>
           </div>
 
         </div>
 
       </main>
+      )}
 
       {/* Hidden PDF Report Template */}
       {analysis && (

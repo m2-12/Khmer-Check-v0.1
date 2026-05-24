@@ -221,15 +221,14 @@ export default function CanvaWorkspace({
               </div>
 
               <h4 className="text-base font-heading font-bold text-[#2D3330] dark:text-white">
-                ទម្លាក់រូបភាពនៅទីនេះ
+                ទាញរូបភាពមកដាក់ទីនេះ ឬ ចុចដើម្បីស្វែងរកឯកសារ
               </h4>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2 max-w-md leading-relaxed font-sans">
-                គាំទ្រប្រភេទរូបភាព JPEG, PNG, or WebP។ 
-                ប្រព័ន្ធនឹងធ្វើការស្កេនដោយស្វ័យប្រវត្តិដើម្បីកែកំហុសវេយ្យាករណ៍ និងអក្សរសាស្ត្រ។
+                គាំទ្ររាល់ឯកសាររូបភាពប្រភេទ JPEG, PNG, ឬ WebP។ មានប្រសិទ្ធភាពខ្ពស់លើរូបថតដែលមានពុម្ពអក្សរច្បាស់ល្អ។
               </p>
 
               <button className="mt-5 bg-[#4A6D5D] hover:bg-[#3E5C4E] dark:bg-[#324B3F] dark:hover:bg-emerald-800 text-[#FAF7F2] font-semibold rounded-xl px-5 py-2.5 text-xs shadow-xs transition-all duration-200 hover:scale-102 active:scale-98">
-                ចុចទីនេះ
+                ជ្រើសរើសរូបភាព
               </button>
             </div>
           </div>

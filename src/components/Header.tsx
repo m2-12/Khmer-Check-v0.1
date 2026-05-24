@@ -1,11 +1,11 @@
 import React from 'react';
-import { PenTool, CheckCircle, RefreshCw, Moon, Sun, Layers, Sliders } from 'lucide-react';
+import { PenTool, CheckCircle, RefreshCw, Moon, Sun, Layers, Sliders, Languages } from 'lucide-react';
 
 interface HeaderProps {
   isDarkMode: boolean;
   setIsDarkMode: (val: boolean) => void;
-  activePanel: 'corrections' | 'rewrite';
-  setActivePanel: (val: 'corrections' | 'rewrite') => void;
+  activePanel: 'corrections' | 'rewrite' | 'ocr-converter';
+  setActivePanel: (val: 'corrections' | 'rewrite' | 'ocr-converter') => void;
   onReset: () => void;
   hasData: boolean;
   ocrConfidence: number;
@@ -59,6 +59,18 @@ export default function Header({
         >
           <Sliders className="w-3.5 h-3.5 text-[#DDAE3B] dark:text-amber-400" />
           <span>កែសម្រួលឃ្លា (Tone)</span>
+        </button>
+        <button
+          onClick={() => setActivePanel('ocr-converter')}
+          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg transition-all duration-300 whitespace-nowrap ${
+            activePanel === 'ocr-converter'
+              ? 'bg-[#FAF7F2] dark:bg-zinc-800 text-[#2D3330] dark:text-white shadow-xs scale-102 font-bold'
+              : 'text-[#6C7571] dark:text-zinc-400 hover:text-[#2D3330] dark:hover:text-white'
+          }`}
+          title="Client-side Image to Khmer and English Text Converter"
+        >
+          <Languages className="w-3.5 h-3.5 text-[#4A6D5D] dark:text-emerald-400" />
+          <span>បំប្លែងរូបភាពជាអត្ថបទ (OCR)</span>
         </button>
       </div>
 
