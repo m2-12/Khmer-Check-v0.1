@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, AlertTriangle, ShieldCheck, Sparkles, HelpCircle } from 'lucide-react';
+import { Award, AlertTriangle, ShieldCheck, Sparkles } from 'lucide-react';
 
 interface MetricCardsProps {
   confidence: number;
@@ -19,141 +19,155 @@ export default function MetricCards({
   marketingScore,
   layoutAdvice
 }: MetricCardsProps) {
-  // Helpers for radial circle strokes
-  const radius = 32;
+  const radius = 26;
   const circumference = 2 * Math.PI * radius;
 
   const getStrokeDashoffset = (score: number) => {
     return circumference - (score / 100) * circumference;
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-emerald-500 stroke-emerald-500';
-    if (score >= 70) return 'text-violet-500 stroke-violet-500';
-    return 'text-amber-500 stroke-amber-500';
-  };
-
-  const getScoreBg = (score: number) => {
-    if (score >= 90) return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400';
-    if (score >= 70) return 'bg-violet-500/10 text-violet-700 dark:text-violet-400';
-    return 'bg-amber-500/10 text-amber-700 dark:text-amber-400';
+  const getScoreColors = (score: number) => {
+    if (score >= 90) return {
+      text: 'text-[#4A6D5D] dark:text-emerald-400',
+      stroke: 'stroke-[#4A6D5D] dark:stroke-emerald-400',
+      bg: 'bg-[#E6EFEA] dark:bg-emerald-950/20 mr-2.5',
+      accent: '#4A6D5D'
+    };
+    if (score >= 70) return {
+      text: 'text-[#9B7004] dark:text-amber-400',
+      stroke: 'stroke-[#DDAE3B] dark:stroke-amber-400',
+      bg: 'bg-[#FFFDF5] dark:bg-amber-950/20 mr-2.5',
+      accent: '#DDAE3B'
+    };
+    return {
+      text: 'text-rose-700 dark:text-rose-450',
+      stroke: 'stroke-rose-600 dark:stroke-rose-400',
+      bg: 'bg-rose-50 dark:bg-rose-950/20 mr-2.5',
+      accent: '#E11D48'
+    };
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 mb-6">
       {/* OCR Confidence Ring */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/80 p-4 rounded-2xl flex items-center justify-between shadow-xs">
-        <div>
-          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            OCR Capture Conf.
+      <div className="bg-white dark:bg-zinc-900 border border-[#ECE7DC] dark:border-zinc-800/80 p-4 sm:p-5 rounded-2xl flex items-center justify-between gap-3 shadow-xs transition-all duration-300 hover:shadow-md hover:scale-[1.01] group min-w-0">
+        <div className="space-y-1 flex-1 min-w-0">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#587E6A] dark:text-zinc-400 flex items-center gap-1.5 min-w-0">
+            <ShieldCheck className="w-4 h-4 text-[#4A6D5D] shrink-0" />
+            <span className="truncate">Extraction Index</span>
           </span>
-          <h4 className="text-2xl font-bold mt-1 text-zinc-900 dark:text-white">{confidence}%</h4>
-          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">High glyph recognition accuracy</p>
+          <h4 className="text-2xl sm:text-3xl font-heading font-extrabold text-[#2D3330] dark:text-white transition-colors duration-200 group-hover:text-[#4A6D5D]">
+            {confidence}%
+          </h4>
+          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium truncate" title="Glyph parsing accuracy">Glyph parsing accuracy</p>
         </div>
-        <div className="relative w-16 h-16">
-          <svg className="w-full h-full transform -rotate-90">
-            <circle cx="32" cy="32" r={radius} className="stroke-zinc-100 dark:stroke-zinc-800" strokeWidth="4" fill="transparent" />
+        <div className="relative w-14 h-14 sm:w-16 sm:h-16 shrink-0">
+          <svg viewBox="0 0 64 64" className="w-full h-full transform -rotate-90">
+            <circle cx="32" cy="32" r={radius} className="stroke-[#F5F2EA] dark:stroke-zinc-800" strokeWidth="4.5" fill="transparent" />
             <circle
               cx="32"
               cy="32"
               r={radius}
-              className={`transition-all duration-1000 ${getScoreColor(confidence)}`}
-              strokeWidth="4"
+              className={`transition-all duration-1000 ${getScoreColors(confidence).stroke}`}
+              strokeWidth="4.5"
               fill="transparent"
               strokeDasharray={circumference}
               strokeDashoffset={getStrokeDashoffset(confidence)}
               strokeLinecap="round"
             />
           </svg>
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-zinc-600 dark:text-zinc-300">
+          <div className="absolute inset-0 flex items-center justify-center text-[9px] sm:text-[10px] font-heading font-extrabold text-[#2D3330] dark:text-zinc-300">
             OCR
           </div>
         </div>
       </div>
 
       {/* Grammar & Spacer Ring */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/80 p-4 rounded-2xl flex items-center justify-between shadow-xs">
-        <div>
-          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-            <Award className="w-3.5 h-3.5 text-violet-500" />
-            Khmer Lexicon Score
+      <div className="bg-white dark:bg-zinc-900 border border-[#ECE7DC] dark:border-zinc-800/80 p-4 sm:p-5 rounded-2xl flex items-center justify-between gap-3 shadow-xs transition-all duration-300 hover:shadow-md hover:scale-[1.01] group min-w-0">
+        <div className="space-y-1 flex-1 min-w-0">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#587E6A] dark:text-zinc-400 flex items-center gap-1.5 min-w-0">
+            <Award className="w-4 h-4 text-[#DDAE3B] shrink-0" />
+            <span className="truncate">Linguistic Health</span>
           </span>
-          <h4 className="text-2xl font-bold mt-1 text-zinc-900 dark:text-white">{grammarScore}%</h4>
-          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Spelling, vowel and spacer health</p>
+          <h4 className="text-2xl sm:text-3xl font-heading font-extrabold text-[#2D3330] dark:text-white transition-colors duration-200 group-hover:text-[#9B7004]">
+            {grammarScore}%
+          </h4>
+          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium truncate" title="Spacers & spellings score">Spacers & spellings score</p>
         </div>
-        <div className="relative w-16 h-16">
-          <svg className="w-full h-full transform -rotate-90">
-            <circle cx="32" cy="32" r={radius} className="stroke-zinc-100 dark:stroke-zinc-800" strokeWidth="4" fill="transparent" />
+        <div className="relative w-14 h-14 sm:w-16 sm:h-16 shrink-0">
+          <svg viewBox="0 0 64 64" className="w-full h-full transform -rotate-90">
+            <circle cx="32" cy="32" r={radius} className="stroke-[#F5F2EA] dark:stroke-zinc-800" strokeWidth="4.5" fill="transparent" />
             <circle
               cx="32"
               cy="32"
               r={radius}
-              className={`transition-all duration-1000 ${getScoreColor(grammarScore)}`}
-              strokeWidth="4"
+              className={`transition-all duration-1000 ${getScoreColors(grammarScore).stroke}`}
+              strokeWidth="4.5"
               fill="transparent"
               strokeDasharray={circumference}
               strokeDashoffset={getStrokeDashoffset(grammarScore)}
               strokeLinecap="round"
             />
           </svg>
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-zinc-600 dark:text-zinc-300">
+          <div className="absolute inset-0 flex items-center justify-center text-[9px] sm:text-[10px] font-heading font-extrabold text-[#2D3330] dark:text-zinc-300">
             KHM
           </div>
         </div>
       </div>
 
       {/* Marketing Quality Score */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/80 p-4 rounded-2xl flex items-center justify-between shadow-xs">
-        <div>
-          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            Marketing Hook Impact
+      <div className="bg-white dark:bg-zinc-900 border border-[#ECE7DC] dark:border-zinc-800/80 p-4 sm:p-5 rounded-2xl flex items-center justify-between gap-3 shadow-xs transition-all duration-300 hover:shadow-md hover:scale-[1.01] group min-w-0">
+        <div className="space-y-1 flex-1 min-w-0">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#587E6A] dark:text-zinc-400 flex items-center gap-1.5 min-w-0">
+            <Sparkles className="w-4 h-4 text-[#DDAE3B] shrink-0" />
+            <span className="truncate">Copywriting Impact</span>
           </span>
-          <h4 className="text-2xl font-bold mt-1 text-zinc-900 dark:text-white">{marketingScore}%</h4>
-          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Slogan readability & commercial vigor</p>
+          <h4 className="text-2xl sm:text-3xl font-heading font-extrabold text-[#2D3330] dark:text-white transition-colors duration-200 group-hover:text-[#9B7004]">
+            {marketingScore}%
+          </h4>
+          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium truncate" title="Sales copy punchiness Index">Sales copy punchiness Index</p>
         </div>
-        <div className="relative w-16 h-16">
-          <svg className="w-full h-full transform -rotate-90">
-            <circle cx="32" cy="32" r={radius} className="stroke-zinc-100 dark:stroke-zinc-800" strokeWidth="4" fill="transparent" />
+        <div className="relative w-14 h-14 sm:w-16 sm:h-16 shrink-0">
+          <svg viewBox="0 0 64 64" className="w-full h-full transform -rotate-90">
+            <circle cx="32" cy="32" r={radius} className="stroke-[#F5F2EA] dark:stroke-zinc-800" strokeWidth="4.5" fill="transparent" />
             <circle
               cx="32"
               cy="32"
               r={radius}
-              className={`transition-all duration-1000 ${getScoreColor(marketingScore)}`}
-              strokeWidth="4"
+              className={`transition-all duration-1000 ${getScoreColors(marketingScore).stroke}`}
+              strokeWidth="4.5"
               fill="transparent"
               strokeDasharray={circumference}
               strokeDashoffset={getStrokeDashoffset(marketingScore)}
               strokeLinecap="round"
             />
           </svg>
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-zinc-600 dark:text-zinc-300">
-            ADV
+          <div className="absolute inset-0 flex items-center justify-center text-[9px] sm:text-[10px] font-heading font-extrabold text-[#2D3330] dark:text-zinc-300">
+            COPY
           </div>
         </div>
       </div>
 
       {/* Spatial Overlay Alerts Card */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/80 p-4 rounded-2xl shadow-xs relative overflow-hidden flex flex-col justify-between">
-        <div className="flex items-start justify-between">
-          <div>
-            <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-              Layout Design Vibe
+      <div className="bg-white dark:bg-zinc-900 border border-[#ECE7DC] dark:border-zinc-800/80 p-4 sm:p-5 rounded-2xl shadow-xs relative overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:scale-[1.01] min-w-0">
+        <div className="flex items-start justify-between gap-2 min-w-0">
+          <div className="space-y-1 flex-1 min-w-0">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#587E6A] dark:text-zinc-400 block truncate">
+              Visual Narrative Vibe
             </span>
-            <div className="text-xs font-bold text-zinc-900 dark:text-white mt-1 capitalize truncate max-w-[150px]" title={layoutAdvice.aestheticVibeMatch}>
+            <div className="text-xs sm:text-sm font-bold text-[#2D3330] dark:text-white mt-1 capitalize truncate font-heading" title={layoutAdvice.aestheticVibeMatch}>
               {layoutAdvice.aestheticVibeMatch}
             </div>
           </div>
-          <div className={`text-xs px-2 py-0.5 rounded-full font-semibold ${layoutAdvice.hasOverlapIssue ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600' : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600'}`}>
-            {layoutAdvice.hasOverlapIssue ? 'ស្ទះប្លង់ (Overlap Alert)' : 'ប្លង់ស្អាតល្អ (Safe Layering)'}
+          <div className={`text-[9px] sm:text-[10px] uppercase font-bold tracking-tight px-2 py-0.5 rounded-full shrink-0 ${layoutAdvice.hasOverlapIssue ? 'bg-rose-50 dark:bg-rose-950/20 text-rose-700 border border-rose-100' : 'bg-[#E6EFEA] dark:bg-emerald-950/25 text-[#4A6D5D] border border-[#CEE2D7]'}`}>
+            {layoutAdvice.hasOverlapIssue ? 'ស្ទះ (Overlap)' : 'ប្លង់ល្អ (Perfect)'}
           </div>
         </div>
 
-        <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1 bg-zinc-50 dark:bg-zinc-950 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800/50">
-          <AlertTriangle className={`w-3.5 h-3.5 shrink-0 ${layoutAdvice.hasOverlapIssue ? 'text-amber-500' : 'text-zinc-400'}`} />
-          <span className="truncate" title={layoutAdvice.overlapDetails || "No text clashes detected!"}>
-            {layoutAdvice.overlapDetails || "Spacing and balance look clean."}
+        <div className="mt-3 text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 bg-[#FAF7F2] dark:bg-zinc-950 p-2 sm:p-2.5 rounded-xl border border-[#ECE7DC]/50 dark:border-zinc-800/60 min-w-0">
+          <AlertTriangle className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${layoutAdvice.hasOverlapIssue ? 'text-[#DDAE3B] animate-pulse' : 'text-[#587E6A]'}`} />
+          <span className="truncate text-[10px] font-sans font-medium" title={layoutAdvice.overlapDetails || "No text overlapping coordinates reported!"}>
+            {layoutAdvice.overlapDetails || "No overlap text clashing."}
           </span>
         </div>
       </div>

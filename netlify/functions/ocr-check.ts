@@ -1,17 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const apiKey = process.env.GEMINI_API_KEY || "";
-
-const ai = new GoogleGenAI({
-  apiKey: apiKey || "MOCK_KEY_IF_NOT_CONFIGURED",
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
-  }
-});
-
 export const handler = async (event: any) => {
+  // Read API Key dynamically from environment inside handler to support runtime injection
+  const activeApiKey = process.env.GEMINI_API_KEY || "";
+
   // Common CORS headers
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -36,7 +28,11 @@ export const handler = async (event: any) => {
         "Content-Type": "application/json",
         ...corsHeaders
       },
-      body: JSON.stringify({ status: "ok", message: "Khmer OCR Netlify Serverless Function ready" })
+      body: JSON.stringify({ 
+        status: "ok", 
+        message: "Khmer OCR Netlify Serverless Function ready",
+        hasApiKey: !!activeApiKey && activeApiKey !== "MOCK_KEY_IF_NOT_CONFIGURED"
+      })
     };
   }
 
@@ -64,20 +60,30 @@ export const handler = async (event: any) => {
           "Content-Type": "application/json",
           ...corsHeaders
         },
-        body: JSON.stringify(getDemoAnalysis(mimeType, customRules))
+        body: JSON.stringify({ ...getDemoAnalysis(mimeType, customRules), isMock: true })
       };
     }
 
-    if (!apiKey || apiKey === "MOCK_KEY_IF_NOT_CONFIGURED") {
+    if (!activeApiKey || activeApiKey === "MOCK_KEY_IF_NOT_CONFIGURED") {
       return {
         statusCode: 200,
         headers: {
           "Content-Type": "application/json",
           ...corsHeaders
         },
-        body: JSON.stringify(getDemoAnalysis(mimeType, customRules))
+        body: JSON.stringify({ ...getDemoAnalysis(mimeType, customRules), isMock: true })
       };
     }
+
+    // Dynamic initialization of active AI service using live API key
+    const ai = new GoogleGenAI({
+      apiKey: activeApiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
 
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 

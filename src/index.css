@@ -1,22 +1,73 @@
-@import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,300..700;1,300..700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,300..700;1,300..700&family=Space+Grotesk:wght@400..700&family=Sora:wght@400..800&family=Inter:wght@300..800&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 @import "tailwindcss";
 
 @variant dark (.dark &);
 
 @theme {
-  --font-sans: "Kantumruy Pro", "Inter", system-ui, -apple-system, sans-serif;
+  --font-heading: "Space Grotesk", "Sora", "Kantumruy Pro", system-ui, sans-serif;
+  --font-sans: "Inter", "Kantumruy Pro", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", monospace;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   font-family: var(--font-sans);
-  background-color: #F8FAFC;
-  color: #0f172a;
-  transition: background-color 200ms ease, color 200ms ease;
+  background-color: #FAF7F2;
+  color: #2D3330;
+  transition: background-color 300ms ease, color 300ms ease;
 }
 
 body.dark {
-  background-color: #09090b;
-  color: #fafafa;
+  background-color: #121614;
+  color: #F5F2EA;
 }
 
+/* Custom scrollbar matching sleek minimalist Japanese aesthetic */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(108, 117, 113, 0.2);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(108, 117, 113, 0.4);
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* 
+ * =========================================================================
+ * Browser Extension & Brave Shield Fix (bis_skin_checked)
+ * =========================================================================
+ * Prevent Brave Browser and third-party styling extensions from injecting 
+ * stylesheet overrides that alter size, shape, absolute positions, padding,
+ * and layouts on any element marked with 'bis_skin_checked'.
+ */
+[bis_skin_checked] {
+  /* Ensure element sizing aligns perfectly with the box model */
+  box-sizing: border-box !important;
+  /* Block extension-induced dimension forced constraints (e.g. min-height or auto padding limits) */
+  max-width: revert !important;
+  max-height: revert !important;
+  margin: revert !important;
+  padding: revert !important;
+}
+
+/* Protect coordinate accuracy of canvas bounding overlay items with bis_skin_checked attributes */
+div[bis_skin_checked].absolute,
+button[bis_skin_checked].absolute {
+  position: absolute !important;
+}

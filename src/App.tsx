@@ -3,7 +3,7 @@ import {
   Upload, FileText, CheckCircle, AlertTriangle, Sparkles, BookOpen, 
   Layers, Users, Sliders, ChevronRight, Copy, Check, Download, 
   Plus, Trash2, ArrowRight, Lightbulb, Play, Info, Eye, Type, Star,
-  RefreshCw
+  RefreshCw, Search, FileUp, FileDown
 } from 'lucide-react';
 import Header from './components/Header';
 import MetricCards from './components/MetricCards';
@@ -17,8 +17,9 @@ import {
 
 export default function App() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
-  const [activePanel, setActivePanel] = useState<'corrections' | 'rewrite' | 'dictionary'>('corrections');
+  const [activePanel, setActivePanel] = useState<'corrections' | 'rewrite'>('corrections');
   const [apiKeyError, setApiKeyError] = useState<boolean>(false);
+  const [isBackendMock, setIsBackendMock] = useState<boolean | null>(null);
   
   // App states
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -42,21 +43,43 @@ export default function App() {
     benefits: string[];
   } | null>(null);
 
-  // Corporate dictionary rules
-  const [dictionary, setDictionary] = useState<BrandDictionaryItem[]>([
-    { id: 'dict_1', term: 'ឆាប់ឡើង', replacement: 'ប្រញាប់ឡើង', category: 'Urgency term' },
-    { id: 'dict_2', term: 'ព្រី', replacement: 'ឥតគិតថ្លៃ', category: 'Loan words' },
-    { id: 'dict_3', term: 'ស្លូវ៉ាន់', replacement: 'ស្លោក', category: 'Typographical standard' }
-  ]);
+  // Corporate dictionary rules with persistent cache loading
+  const [dictionary, setDictionary] = useState<BrandDictionaryItem[]>(() => {
+    try {
+      const cached = localStorage.getItem('khmer_poster_grammar_dictionary');
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (e) {
+      console.error("Failed loading dictionary from local storage:", e);
+    }
+    return [
+      { id: 'dict_1', term: 'ឆាប់ឡើង', replacement: 'ប្រញាប់ឡើង', category: 'Urgency term' },
+      { id: 'dict_2', term: 'ព្រី', replacement: 'ឥតគិតថ្លៃ', category: 'Loan words' },
+      { id: 'dict_3', term: 'ស្លូវ៉ាន់', replacement: 'ស្លោក', category: 'Typographical standard' }
+    ];
+  });
   const [newDictTerm, setNewDictTerm] = useState('');
   const [newDictReplacement, setNewDictReplacement] = useState('');
   const [newDictCategory, setNewDictCategory] = useState('Standard');
+  const [dictSearchQuery, setDictSearchQuery] = useState('');
+  const [dictCategoryFilter, setDictCategoryFilter] = useState('All');
 
-  // Custom execution guidance rules
-  const [customRules, setCustomRules] = useState<UserCustomRule[]>([
-    { id: 'rule_1', name: 'ប្រើប្រាស់លេខខ្មែរឡើយវិញ', ruleType: 'always_unicode', details: 'បំប្លែងរាល់ការប្រើប្រាស់លេខអារ៉ាប់ទៅជាលេខខ្មែរជានិច្ច' },
-    { id: 'rule_2', name: 'កំណត់សម្លេងរួសរាយ', ruleType: 'force_tone', details: 'ប្រើប្រាស់ពាក្យមិត្តភាពជានិច្ចពេលផ្សាយអាហារ' }
-  ]);
+  // Custom execution guidance rules with persistent cache loading
+  const [customRules, setCustomRules] = useState<UserCustomRule[]>(() => {
+    try {
+      const cached = localStorage.getItem('khmer_poster_custom_rules');
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (e) {
+      console.error("Failed loading custom rules from local storage:", e);
+    }
+    return [
+      { id: 'rule_1', name: 'ប្រើប្រាស់លេខខ្មែរឡើយវិញ', ruleType: 'always_unicode', details: 'បំប្លែងរាល់ការប្រើប្រាស់លេខអារ៉ាប់ទៅជាលេខខ្មែរជានិច្ច' },
+      { id: 'rule_2', name: 'កំណត់សម្លេងរួសរាយ', ruleType: 'force_tone', details: 'ប្រើប្រាស់ពាក្យមិត្តភាពជានិច្ចពេលផ្សាយអាហារ' }
+    ];
+  });
   const [newRuleName, setNewRuleName] = useState('');
   const [newRuleDetails, setNewRuleDetails] = useState('');
   const [newRuleType, setNewRuleType] = useState<UserCustomRule['ruleType']>('find_replace');
@@ -91,6 +114,52 @@ export default function App() {
       document.body.classList.remove('dark');
     }
   }, [isDarkMode]);
+
+  // System diagnostic check on app startup to detect live backend capabilities
+  useEffect(() => {
+    const checkBackendStatus = async () => {
+      try {
+        // Try requesting from api/health first
+        const directHealth = await fetch('/api/health').then(r => r.json()).catch(() => null);
+        if (directHealth && typeof directHealth.hasApiKey === 'boolean') {
+          setIsBackendMock(!directHealth.hasApiKey);
+          return;
+        }
+
+        // If that fails, call /api/ocr-check via GET which also supports health diagnosis on Netlify redirects
+        const functionsHealth = await fetch('/api/ocr-check').then(r => r.json()).catch(() => null);
+        if (functionsHealth && typeof functionsHealth.hasApiKey === 'boolean') {
+          setIsBackendMock(!functionsHealth.hasApiKey);
+          return;
+        }
+
+        // Default: If responses don't give structured keys, remain in null or assume mock if offline
+        setIsBackendMock(true);
+      } catch (err) {
+        console.warn("Could not check live backend key status directly:", err);
+        setIsBackendMock(true);
+      }
+    };
+    checkBackendStatus();
+  }, []);
+
+  // Persist dictionary state to local storage on modification
+  useEffect(() => {
+    try {
+      localStorage.setItem('khmer_poster_grammar_dictionary', JSON.stringify(dictionary));
+    } catch (e) {
+      console.error("Failed saving dictionary to localStorage", e);
+    }
+  }, [dictionary]);
+
+  // Persist custom rules state to local storage on modification
+  useEffect(() => {
+    try {
+      localStorage.setItem('khmer_poster_custom_rules', JSON.stringify(customRules));
+    } catch (e) {
+      console.error("Failed saving custom rules to localStorage", e);
+    }
+  }, [customRules]);
 
   // Robust client-side fallback analysis generator for offline or static hosting environments (e.g. Netlify)
   const generateClientFallbackAnalysis = (
@@ -186,83 +255,137 @@ export default function App() {
     };
   };
 
-  // Quick helper to read images as base64
-  const handleImageUpload = (file: File) => {
+  // Helper to compress images client-side before uploading (speeds up payload transfer from ~5-10MB to <150KB)
+  const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.75): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(event.target?.result as string);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve("");
+      };
+      reader.onerror = () => resolve("");
+    });
+  };
+
+  // Quick helper to read images as base64 and process
+  const handleImageUpload = async (file: File) => {
     setFileName(file.name);
     // Format human-readable file size
     const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
     setFileSize(`${sizeInMb} MB`);
     setIsProcessing(true);
+    setApiKeyError(false);
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const base64Data = event.target?.result as string;
-      setImageSrc(base64Data);
+    try {
+      // Compress the image before network dispatch to maximize upload speed and reduce functions latency
+      const compressedBase64 = await compressImage(file);
+      if (!compressedBase64) {
+        throw new Error("ការបង្ហាប់រូបភាពបានបរាជ័យ (Image compression failed).");
+      }
+      
+      setImageSrc(compressedBase64);
 
-      // Trigger server-side OCR and linguistic audit
-      try {
-        setApiKeyError(false);
-        const response = await fetch('/api/ocr-check', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            imageBase64: base64Data,
-            mimeType: file.type,
-            customRules: dictionary
-          })
-        });
+      // Trigger server-side OCR with compressed web-optimized image payload
+      const response = await fetch('/api/ocr-check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          imageBase64: compressedBase64,
+          mimeType: 'image/jpeg', // Output of canvas JPEG compression
+          customRules: dictionary
+        })
+      });
 
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || data.error === 'API_KEY_LEAKED') {
-          if (data.error === 'API_KEY_LEAKED' || (data.details && String(data.details).includes('leaked'))) {
-            setApiKeyError(true);
-          }
-          throw new Error(data.details || 'API server failed processing image');
-        }
-
-        const formattedAnalysis: PosterAnalysis = {
-          id: `session_${Date.now()}`,
-          fileName: file.name,
-          fileSize: `${sizeInMb} MB`,
-          createdAt: new Date().toLocaleTimeString('km-KH'),
-          imageSrc: base64Data,
-          overallStats: data.overallStats || { confidenceScore: 89, grammarSpacerScore: 91, marketingImpactScore: 84 },
-          layoutAdvice: data.layoutAdvice || { hasOverlapIssue: false, overlapDetails: null, spacingDistributionRating: "Balanced layout", aestheticVibeMatch: "Standard Digital Post" },
-          marketingHooks: data.marketingHooks || [],
-          items: data.items || []
-        };
-
-        setAnalysis(formattedAnalysis);
-
-        // Pre-select first item if exists
-        if (formattedAnalysis.items.length > 0) {
-          setSelectedItemId(formattedAnalysis.items[0].id);
-        }
-
-        // Add to history list
-        setHistory(prev => [
-          {
-            id: formattedAnalysis.id,
-            name: file.name,
-            createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
-            imageSrc: base64Data,
-            score: formattedAnalysis.overallStats.grammarSpacerScore,
-            grammarIssuesCount: formattedAnalysis.items.filter(i => i.category !== 'ok').length
-          },
-          ...prev
-        ]);
-
-      } catch (err: any) {
-        console.warn("Express server for OCR is offline or static hosting (Netlify) is active. Running robust client-side simulation fallback.", err);
-        const errStr = String(err.message || err || "");
-        if (errStr.toLowerCase().includes("leaked") || errStr.toLowerCase().includes("permission_denied") || errStr.includes("403")) {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.error === 'API_KEY_LEAKED') {
+        if (data.error === 'API_KEY_LEAKED' || (data.details && String(data.details).includes('leaked'))) {
           setApiKeyError(true);
         }
-        
-        // Execute dynamic mock generator
-        const formattedAnalysis = generateClientFallbackAnalysis(file.name, `${sizeInMb} MB`, base64Data, dictionary);
+        throw new Error(data.details || 'API server failed processing image');
+      }
+
+      if (data.isMock) {
+        setIsBackendMock(true);
+      } else {
+        setIsBackendMock(false);
+      }
+
+      const formattedAnalysis: PosterAnalysis = {
+        id: `session_${Date.now()}`,
+        fileName: file.name,
+        fileSize: `${sizeInMb} MB`,
+        createdAt: new Date().toLocaleTimeString('km-KH'),
+        imageSrc: compressedBase64,
+        overallStats: data.overallStats || { confidenceScore: 89, grammarSpacerScore: 91, marketingImpactScore: 84 },
+        layoutAdvice: data.layoutAdvice || { hasOverlapIssue: false, overlapDetails: null, spacingDistributionRating: "Balanced layout", aestheticVibeMatch: "Standard Digital Post" },
+        marketingHooks: data.marketingHooks || [],
+        items: data.items || []
+      };
+
+      setAnalysis(formattedAnalysis);
+
+      // Pre-select first item if exists
+      if (formattedAnalysis.items.length > 0) {
+        setSelectedItemId(formattedAnalysis.items[0].id);
+      }
+
+      // Add to history list
+      setHistory(prev => [
+        {
+          id: formattedAnalysis.id,
+          name: file.name,
+          createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+          imageSrc: compressedBase64,
+          score: formattedAnalysis.overallStats.grammarSpacerScore,
+          grammarIssuesCount: formattedAnalysis.items.filter(i => i.category !== 'ok').length
+        },
+        ...prev
+      ]);
+
+    } catch (err: any) {
+      console.warn("Express server for OCR is offline or static hosting (Netlify) is active. Running robust client-side simulation fallback.", err);
+      const errStr = String(err.message || err || "");
+      if (errStr.toLowerCase().includes("leaked") || errStr.toLowerCase().includes("permission_denied") || errStr.includes("403")) {
+        setApiKeyError(true);
+      }
+      
+      // Execute dynamic mock generator
+      const fallbackReader = new FileReader();
+      fallbackReader.onload = () => {
+        const fallbackBase64 = fallbackReader.result as string;
+        const formattedAnalysis = generateClientFallbackAnalysis(file.name, `${sizeInMb} MB`, fallbackBase64, dictionary);
         setAnalysis(formattedAnalysis);
 
         if (formattedAnalysis.items.length > 0) {
@@ -274,17 +397,17 @@ export default function App() {
             id: formattedAnalysis.id,
             name: file.name,
             createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
-            imageSrc: base64Data,
+            imageSrc: fallbackBase64,
             score: formattedAnalysis.overallStats.grammarSpacerScore,
             grammarIssuesCount: formattedAnalysis.items.filter(i => i.category !== 'ok').length
           },
           ...prev
         ]);
-      } finally {
-        setIsProcessing(false);
-      }
-    };
-    reader.readAsDataURL(file);
+      };
+      fallbackReader.readAsDataURL(file);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleExportPDF = async () => {
@@ -422,129 +545,12 @@ export default function App() {
           }
         ];
       } else {
-        data.layoutAdvice.aestheticVibeMatch = "Sizzling Summer Event Post";
-        data.items = [
-          {
-            id: "evt_1",
-            originalText: "ខនសឺតរដូវក្តៅជួបគ្នានៅមហោស្រប",
-            correctedText: "មហោស្រពតន្ត្រីរដូវក្ដៅ ជួបគ្នាក្នុងពេលឆាប់ៗ",
-            boundingBox: { x: 10, y: 40, width: 80, height: 18 },
-            category: "grammar",
-            explanation: "ពាក្យ 'មហោស្រប' សរសេរខុសអក្ខរាវិរុទ្ធស្តង់ដារ ត្រូវកែជា 'មហោស្រព' (ប្រើ ព ជំនួស ប)។",
-            alternatives: ["ការប្រគំតន្ត្រីរដូវក្តៅដ៏អស្ចារ្យ", "មហោស្រពចម្រៀងរដូវក្តៅ"],
-            readabilityRating: "poor",
-            fontReadabilityWarning: "Thin glowing outline causes pixel letters to fade into background strobe lights."
-          }
-        ];
-      }
-
-      setAnalysis({
-        id: `sample_${sampleKey}`,
-        fileName: name,
-        fileSize: '1.45 MB',
-        createdAt: new Date().toLocaleTimeString('km-KH'),
-        imageSrc: sampleUrl,
-        overallStats: data.overallStats,
-        layoutAdvice: data.layoutAdvice,
-        marketingHooks: data.marketingHooks,
-        items: data.items
-      });
-      setSelectedItemId(data.items[0]?.id || null);
-
-    } catch (err) {
-      console.warn("Express server for sample is offline or static hosting (Netlify) is active. Loading beautiful pre-baked linguistic datasets directly from client state.", err);
-      
-      let data = {
-        overallStats: {
-          confidenceScore: 92,
-          grammarSpacerScore: 78,
-          marketingImpactScore: 85
-        },
-        layoutAdvice: {
-          hasOverlapIssue: true,
-          overlapDetails: "Text in lower region 'ទិញ1ថែម1 ឆាប់ឡើង!!' slightly crowds the coffee cup graphics.",
-          spacingDistributionRating: "Slightly crowded bottom layout",
-          aestheticVibeMatch: "Traditional street cafe banner style"
-        },
-        marketingHooks: [
-          "រសជាតិពិត កាហ្វេខ្មែរ ឈ្ងុយឆ្ងាញ់រាល់ព្រឹកព្រលឹម!",
-          "ឱកាសមាស! ទិញ ១ ថែម ១ សម្រាប់ថាមពលពេញមួយថ្ងៃ",
-          "ប្រញាប់ឡើង! កាហ្វេក្តៅឧណ្ហៗ ទិញ ១ ថែម ១ មានកំណត់"
-        ],
-        items: [] as any[]
-      };
-
-      if (sampleKey === 'coffee') {
-        data.overallStats = { confidenceScore: 95, grammarSpacerScore: 82, marketingImpactScore: 88 };
+        data.overallStats = { confidenceScore: 85, grammarSpacerScore: 72, marketingImpactScore: 78 };
         data.layoutAdvice = {
           hasOverlapIssue: false,
           overlapDetails: null,
-          spacingDistributionRating: "Well-balanced coffee theme layout",
-          aestheticVibeMatch: "Coffee Shop / Cafe Promotion"
-        };
-        data.items = [
-          {
-            id: "coffee_1",
-            originalText: "ទិញ1ថែម1 ឆាប់ឡើង!!",
-            correctedText: "ទិញ ១ ថែម ១ ប្រញាប់ឡើង!",
-            boundingBox: { x: 20, y: 70, width: 60, height: 12 },
-            category: "spacing",
-            explanation: "ប្រើប្រាស់លេខខ្មែរ (១) ជំនួសលេខឡាតាំង ដើម្បីភាពស្រស់ស្អាតលើផ្ទាំងរចនាខ្មែរ និងថែមចន្លោះសមស្រប។",
-            alternatives: ["ទិញ ១ ថែម ១ ចំនួនមានកំណត់!", "ប្រញាប់ឡើង! ទិញ ១ ថែម ១"],
-            readabilityRating: "excellent",
-            fontReadabilityWarning: null
-          },
-          {
-            id: "coffee_2",
-            originalText: "រសជាតិពិត កាហ្វេទឹកដោះគោ",
-            correctedText: "រសជាតិពិត កាហ្វេទឹកដោះគោ",
-            boundingBox: { x: 15, y: 35, width: 70, height: 10 },
-            category: "ok",
-            explanation: "សរសេរអក្ខរាវិរុទ្ធល្អ ហើយដកឃ្លាបំបែកព្យាង្គបានត្រឹមត្រូវបំផុត។",
-            alternatives: [],
-            readabilityRating: "excellent",
-            fontReadabilityWarning: null
-          }
-        ];
-      } else if (sampleKey === 'cosmetics') {
-        data.overallStats = { confidenceScore: 89, grammarSpacerScore: 65, marketingImpactScore: 92 };
-        data.layoutAdvice = {
-          hasOverlapIssue: true,
-          overlapDetails: "Text blocks slightly bleed into main facial shadows.",
-          spacingDistributionRating: "Crowded top margins",
-          aestheticVibeMatch: "Premium Beauty & Cosmetics"
-        };
-        data.items = [
-          {
-            id: "cos_1",
-            originalText: "ឡេលាបក្លៀកកម្ចាត់ក្លិន",
-            correctedText: "ឡេលាបស្បែកជាតិថ្នាំកម្ចាត់ក្លិន",
-            boundingBox: { x: 15, y: 25, width: 70, height: 14 },
-            category: "spelling",
-            explanation: "ពាក្យមិនទាន់ឈានដល់ស្តង់ដារប្រ៊ែន បាត់ស្រៈ 'ើ' ឬប្រើប្រាស់អក្សរផ្សំមិនត្រូវតាមវចនានុក្រមជួរជាតិ។",
-            alternatives: ["សេរ៉ូមបំបាត់ក្លិនភាយ", "ឡេការពារក្លិនខ្លួនបែបទំនើប"],
-            readabilityRating: "fair",
-            fontReadabilityWarning: "The cursive Khmer script is overly intricate for background flyers."
-          },
-          {
-            id: "cos_2",
-            originalText: "ព្រីថ្លៃដឹក",
-            correctedText: "ឥតគិតថ្លៃសេវាដឹកជញ្ជូន",
-            boundingBox: { x: 30, y: 80, width: 40, height: 8 },
-            category: "tone",
-            explanation: "ពាក្យ 'ព្រី' ជាភាសាបរទេស (Free)។ គួរប្រើពាក្យ 'ឥតគិតថ្លៃ' ជំនួសដើម្បីលក្ខណៈផ្លូវការ និងប្រណីតភាព។",
-            alternatives: ["ដឹកជញ្ជូនឥតគិតថ្លៃទូទាំងប្រទេស", "សេវាដឹកជញ្ជូន ០ រៀល"],
-            readabilityRating: "excellent",
-            fontReadabilityWarning: null
-          }
-        ];
-      } else {
-        data.overallStats = { confidenceScore: 91, grammarSpacerScore: 71, marketingImpactScore: 84 };
-        data.layoutAdvice = {
-          hasOverlapIssue: true,
-          overlapDetails: "Thin glowing outline causes pixel letters to fade into background strobe lights.",
-          spacingDistributionRating: "Slightly overlapping font lines on background visual elements",
-          aestheticVibeMatch: "Sizzling Summer Event Post"
+          spacingDistributionRating: "Excellent spacing rhythm",
+          aestheticVibeMatch: "Music Festival Poster"
         };
         data.items = [
           {
@@ -562,7 +568,7 @@ export default function App() {
       }
 
       setAnalysis({
-        id: `sample_${sampleKey}`,
+        id: `fallback_sample_${sampleKey}`,
         fileName: name,
         fileSize: '1.45 MB',
         createdAt: new Date().toLocaleTimeString('km-KH'),
@@ -573,18 +579,20 @@ export default function App() {
         items: data.items
       });
       setSelectedItemId(data.items[0]?.id || null);
+    } catch {
+      // Caught in previous try, but finally we must change isProcessing
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Perform a dedicated smart sentence tone transformation
+  // Modern smart rewrite utilizing tone modes
   const handleSmartRewrite = async () => {
     if (!rewriteInput.trim()) return;
     setIsRewriting(true);
 
     try {
-      const response = await fetch('/api/smart-rewrite', {
+      const response = await fetch('/api/tone-rewrite', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -592,90 +600,50 @@ export default function App() {
         body: JSON.stringify({
           text: rewriteInput,
           tone: selectedTone,
-          lengthMode: rewriteLength,
-          brandVocabulary: dictionary
+          length: rewriteLength
         })
       });
 
-      const val = await response.json().catch(() => ({}));
-      if (!response.ok || val.error === 'API_KEY_LEAKED') {
-        if (val.error === 'API_KEY_LEAKED' || (val.details && String(val.details).includes('leaked'))) {
-          setApiKeyError(true);
-        }
-        throw new Error(val.details || 'Rewrite request failed');
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.rewrittenText) {
+        setRewriteResult({
+          rewrittenText: data.rewrittenText,
+          explanation: data.explanation || 'កែលម្អតាមតម្រូវការប្រព័ន្ធផ្សព្វផ្សាយ។',
+          score: data.score || 92,
+          benefits: data.benefits || ['បង្កើនភាពទាក់ទាញ', 'អក្ខរាវិរុទ្ធស្របតាមគោលការណ៍']
+        });
+        return;
       }
 
-      setRewriteResult({
-        rewrittenText: val.rewrittenText,
-        explanation: val.explanation,
-        score: val.score,
-        benefits: val.benefits || []
-      });
+      // Client fallback simulation matching premium marketing algorithms
+      let rewrittenText = '';
+      let explanation = '';
+      let score = 88;
+      let benefits = ['បង្កើនការទាក់ទាញ', 'ភាសាសមស្រប'];
 
-    } catch (err: any) {
-      console.warn("Express server for rewrite is offline or static hosting (Netlify) is active. Running robust client-side rewrite fallback.", err);
-      const errStr = String(err.message || err || "");
-      if (errStr.toLowerCase().includes("leaked") || errStr.toLowerCase().includes("permission_denied") || errStr.includes("403")) {
-        setApiKeyError(true);
-      }
-      
-      let rewrittenText = rewriteInput;
-      let explanation = "កែសម្រួលឃ្លាប្រយោគ និងការដកឃ្លាភាសាខ្មែរឱ្យមានភាពត្រឹមត្រូវតាមក្បួនវេយ្យាករណ៍ និងបង្កើនលទ្ធផលផ្សព្វផ្សាយ។";
-      let benefits = ["Evokes high aesthetic elegance and reading comfort", "Strict compliance with formal spelling rules"];
-      let score = 90;
-
-      const lowerText = rewriteInput.toLowerCase();
-      if (lowerText.includes("ទិញ") || lowerText.includes("buy")) {
-        if (selectedTone === "luxury") {
-          rewrittenText = "សិល្បៈនៃការចម្អិនកាហ្វេដ៏វិសេសវិសាល ទិញ ១ ជូន ១";
-          explanation = "ជ្រើសរើសពាក្យ 'ជូន' ជំនួស 'ថែម' និងបន្ថែមគុណនាម 'ដ៏វិសេសវិសាល' ដើម្បីផ្តល់នូវកម្រិតកំពូលនៃប្រណីតភាពសម្រាប់ម៉ាកយីហោលំដាប់ខ្ពស់។";
-          benefits = ["ទាក់ទាញអតិថិជនលំដាប់ខ្ពស់ (VIP)", "បង្កើនកិត្យានុភាពនៃស្លាកសញ្ញារបស់ហាង"];
-          score = 96;
-        } else if (selectedTone === "youthful") {
-          rewrittenText = "ប្រូពិសេសម៉ងហាស! ទិញ ១ ថែម ១ ហ្វ្រីៗ!";
-          explanation = "ប្រើប្រាស់ពាក្យទាន់សម័យរបស់យុវវ័យ ('ម៉ងហាស', 'ហ្វ្រីៗ') បង្កើតអារម្មណ៍ជិតស្និទ្ធ និងទាក់ទាញចំណាប់អារម្មណ៍ក្មេងៗភ្លាមៗ។";
-          benefits = ["បង្កើតអារម្មណ៍រីកលាយ និងជិតស្និទ្ធបំផុត", "ស័ក្តិសមខ្លាំងសម្រាប់បណ្តាញសង្គម TikTok/Facebook Feed"];
-          score = 88;
-        } else if (selectedTone === "promotional") {
-          rewrittenText = "ឱកាសពិសេស! ទិញ ១ ថែម ១ ចំនួនមានកំណត់!";
-          explanation = "សង្កត់ធ្ងន់ទៅលើភាពបន្ទាន់ និងលក្ខណៈពិសេសនៃចំនួនកំណត់ ដើម្បីជម្រុញចំណង់ទិញរបស់អតិថិជនឱ្យបានលឿនបំផុត។";
-          benefits = ["ជម្រុញការសម្រេចចិត្តទិញភ្លាមៗ (FOMO)", "បង្កើនសន្ទុះនៃការលក់ទ្វេដង"];
-          score = 93;
-        } else {
-          rewrittenText = "ឱកាសមាស! ទិញ ១ ថែម ១ សម្រាប់ថ្ងៃនេះតែប៉ុណ្ណោះ";
-          explanation = "កែសម្រួលដកឃ្លា និងបង្កើតចំណងជើងដ៏មានឥទ្ធិពលតាមស្តង់ដារផ្សព្វផ្សាយ។";
-          benefits = ["ធានាសោភ័ណភាពប្លង់", "ងាយស្រួលទាក់ភ្នែកពីចម្ងាយ"];
-          score = 90;
-        }
+      if (selectedTone === "promotional") {
+        rewrittenText = "ឱកាសចំណេញទ្វេដង៖ ទិញ ១ ថែម ១ ភ្លាមៗ!";
+        explanation = "បង្កើនឥទ្ធិពលទីផ្សារដោយប្រើប្រាស់ពាក្យពន្លឿនការសម្រេចចិត្តរបស់អតិថិជន។";
+        score = 96;
+        benefits = ["ទាក់ទាញការទិញភ្លាមៗ", "ប្រើប្រាស់លេខខ្មែរផ្លូវការ", "ខ្លី ខ្លឹម ងាយយល់"];
+      } else if (selectedTone === "elegant") {
+        rewrittenText = "សូមអញ្ជើញជាវផលិតផល ប្រូម៉ូសិនពិសេស ទិញ ១ ថែមជូន ១ រួសរាន់ឡើង";
+        explanation = "ជ្រើសរើសវាក្យសព្ទបែបស៊ីវីល័យ និងប្រណិតភាព ដើម្បីទាក់ទាញអតិថិជនលំដាប់ខ្ពស់។";
+        score = 90;
+        benefits = ["ភាសាមានភាពថ្លៃថ្នូរ", "សមស្របសម្រាប់ការផ្សព្វផ្សាយម៉ាកប្រណិត"];
+      } else if (selectedTone === "academic") {
+        rewrittenText = "ការផ្ដល់ជូនពិសេស៖ ជាវផលិតផល ១ ទទួលបានការបន្ថែមជូន ១";
+        explanation = "ប្រើប្រាស់ពាក្យវាក្យសព្ទផ្លូវការនៃវចនានុក្រមជាតិ។";
+        score = 94;
+        benefits = ["ត្រឹមត្រូវតាមវេយ្យាករណ៍ជាតិ", "សមស្របសម្រាប់ស្ថាប័នអប់រំ និងផ្លូវការ"];
+      } else if (selectedTone === "poetic") {
+        rewrittenText = "រសជាតិកាហ្វេដិតដាន ទិញមួយបន្ថែមមួយឥតធុញទ្រាន់";
+        explanation = "ប្រើប្រាស់ឃ្លាចុងចួនបែបមនោសញ្ចេតនា។";
+        score = 85;
+        benefits = ["មានគន្លងចុងចួនពិរោះ", "ជះឥទ្ធិពលអារម្មណ៍ជម្រៅចិត្ត"];
       } else {
-        // Generic fallback translations for custom text
-        if (selectedTone === "luxury") {
-          rewrittenText = `បទពិសោធន៍ដ៏វិសេសវិសាល៖ ${rewriteInput}`;
-          explanation = "បន្ថែមគុណនាមលំដាប់ខ្ពស់ និងរចនាបថប្រណីតភាពដើម្បីទាក់ទាញអភិជន។";
-          benefits = ["បង្កើនមោទនភាព និងការជឿជាក់លើប្រ៊ែន", "សាកសមនឹងផលិតផលលំដាប់ខ្ពស់"];
-          score = 94;
-        } else if (selectedTone === "formal") {
-          rewrittenText = `សូមគោរពអញ្ជើញ៖ ${rewriteInput}`;
-          explanation = "ប្រើប្រាស់ពាក្យគួរសមខ្ពស់តាមស្តង់ដារគោរពអញ្ជើញជាផ្លូវការដើម្បីការជឿជាក់ខ្ពស់។";
-          benefits = ["បង្កើតភាពថ្លៃថ្នូរ និងការគោរពជាទីបំផុត", "សាកសមនឹងទំនាក់ទំនងបែបប៊ីហ្ស៊ីនេស (B2B)"];
-          score = 92;
-        } else if (selectedTone === "friendly") {
-          rewrittenText = `${rewriteInput} ជាមួយពួកយើងណា៎!`;
-          explanation = "បន្ថែមពាក្យបញ្ចប់បែបកក់ក្តៅ រួសរាយរាក់ទាក់ និងសាមញ្ញ។";
-          benefits = ["បង្កើតទំនាក់ទំនងជិតស្និទ្ធជាមួយអតិថិជន", "ជំរុញឱ្យមានការសាកសួរព័ត៌មានបន្ថែម"];
-          score = 88;
-        } else if (selectedTone === "promotional") {
-          rewrittenText = `មហាប្រម៉ូសិន! ${rewriteInput} រួសរាន់ឡើង!`;
-          explanation = "បន្ថែមសញ្ញាឧទាន និងពាក្យជម្រុញសកម្មភាពទិញឱ្យលឿនរហ័ស។";
-          benefits = ["ជម្រុញចំណង់ទិញភ្លាមៗរបស់អ្នកអាន", "បង្កើនការទាក់ទាញចំណាប់អារម្មន៍"];
-          score = 91;
-        }
-      }
-
-      if (rewriteLength === "shorten") {
-        rewrittenText = rewrittenText.length > 25 ? rewrittenText.substring(0, 25) + "..." : rewrittenText;
-      } else if (rewriteLength === "longer") {
-        rewrittenText = rewrittenText + " - ជួបគ្នាជាមួយការផ្តល់ជូនដែលមិនធ្លាប់មានពីមុនមក ធានាការពេញចិត្តជាទីបំផុតជូនអតិថិជន!";
+        rewrittenText = rewriteInput + " ដោយភាពរីករាយ";
+        explanation = "បន្ថែមពាក្យរួសរាយរាក់ទាក់ដើម្បីងាយស្រួលទាក់ទង។";
       }
 
       setRewriteResult({
@@ -684,151 +652,125 @@ export default function App() {
         score,
         benefits
       });
+    } catch (err) {
+      console.warn("Express server for rewrite failed", err);
     } finally {
       setIsRewriting(false);
     }
   };
 
-  // Trigger copying corrected/adjusted text state for designers
+  // Helper to handle JSON import
+  const importDictionaryJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileReader = new FileReader();
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    fileReader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        if (Array.isArray(parsed)) {
+          // Validate structure
+          const validated = parsed.filter(item => item && typeof item === 'object' && item.term && item.replacement);
+          if (validated.length === 0) {
+            alert("ឯកសារ JSON គ្មានទម្រង់ពាក្យត្រឹមត្រូវទេ! (No valid terms found inside the JSON file)");
+            return;
+          }
+          
+          setDictionary(prev => {
+            const merged = [...prev];
+            validated.forEach((item: any) => {
+              const existsIdx = merged.findIndex(v => v.term.toLowerCase() === item.term.toLowerCase());
+              if (existsIdx !== -1) {
+                merged[existsIdx] = {
+                  ...merged[existsIdx],
+                  replacement: item.replacement,
+                  category: item.category || 'Standard'
+                };
+              } else {
+                merged.push({
+                  id: item.id || `rule_dict_imported_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                  term: item.term.trim(),
+                  replacement: item.replacement.trim(),
+                  category: item.category || 'Standard'
+                });
+              }
+            });
+            return merged;
+          });
+          alert(`បាននាំចូលវាក្យសព្ទចំនួន ${validated.length} គូដោយជោគជ័យ!`);
+        } else {
+          alert("ឯកសារ JSON ត្រូវតែជាបញ្ជីអារេ (JSON file must be an array format).");
+        }
+      } catch (err) {
+        alert("ការនាំចូលបានបរាជ័យ៖ ឯកសារមិនត្រឹមត្រូវ (Import failed: invalid file).");
+      }
+    };
+    fileReader.readAsText(files[0]);
+  };
+
+  // Helper to determine the active correction item based on selected item list
+  const activeItem = analysis?.items.find(item => item.id === selectedItemId) || null;
+
+  // Simple handler to copy strings safely
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopiedText(label);
     setTimeout(() => setCopiedText(null), 2000);
   };
 
-  // Manage custom corporate dictionary entries
-  const addDictionaryItem = () => {
-    if (!newDictTerm || !newDictReplacement) return;
-    const newItem: BrandDictionaryItem = {
-      id: `rule_dict_${Date.now()}`,
-      term: newDictTerm,
-      replacement: newDictReplacement,
-      category: newDictCategory
-    };
-    setDictionary([...dictionary, newItem]);
-    setNewDictTerm('');
-    setNewDictReplacement('');
-  };
-
-  const removeDictionaryItem = (id: string) => {
-    setDictionary(dictionary.filter(item => item.id !== id));
-  };
-
-  // Manage typography helper rules
-  const addCustomRule = () => {
-    if (!newRuleName || !newRuleDetails) return;
-    const newItem: UserCustomRule = {
-      id: `rule_cust_${Date.now()}`,
-      name: newRuleName,
-      ruleType: newRuleType,
-      details: newRuleDetails
-    };
-    setCustomRules([...customRules, newItem]);
-    setNewRuleName('');
-    setNewRuleDetails('');
-  };
-
-  const removeCustomRule = (id: string) => {
-    setCustomRules(customRules.filter(r => r.id !== id));
-  };
-
-  const getActiveItem = () => {
-    if (!analysis) return null;
-    return analysis.items.find(item => item.id === selectedItemId) || null;
-  };
-
-  const handleReset = () => {
-    setImageSrc(null);
-    setAnalysis(null);
-    setSelectedItemId(null);
-  };
-
-  const activeItem = getActiveItem();
-
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-zinc-950 font-sans text-slate-900 dark:text-zinc-100 transition-colors duration-200">
-      
-      {/* Dynamic Native Application Header */}
-      <Header 
-        isDarkMode={isDarkMode} 
-        setIsDarkMode={setIsDarkMode} 
+    <div className="min-h-screen flex flex-col bg-[#FAF7F2] dark:bg-[#121614] font-sans text-[#2D3330] dark:text-[#FAF7F2] transition-colors duration-300">
+      <Header
+        isDarkMode={isDarkMode}
+        setIsDarkMode={setIsDarkMode}
         activePanel={activePanel}
         setActivePanel={setActivePanel}
-        onReset={handleReset}
+        onReset={() => {
+          setImageSrc(null);
+          setFileName('');
+          setFileSize('');
+          setAnalysis(null);
+          setSelectedItemId(null);
+        }}
         hasData={!!analysis}
-        ocrConfidence={analysis?.overallStats?.confidenceScore || 0}
+        ocrConfidence={analysis ? analysis.overallStats.grammarSpacerScore : 0}
       />
 
-      {apiKeyError && (
-        <div className="mx-4 lg:mx-6 mt-4 p-4 rounded-2xl bg-red-50 dark:bg-rose-950/20 border border-red-200 dark:border-rose-900/40 text-red-800 dark:text-rose-200 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="flex gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-rose-400 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="font-bold text-sm">កំហុសកូនសោ API (Leaked Gemini API Key Detected - Action Required)</h4>
-              <p className="text-xs text-red-700/95 dark:text-rose-300/90 mt-1 leading-relaxed">
-                កូនសោ API (Gemini API Key) របស់អ្នកត្រូវបានរារាំងដោយប្រព័ន្ធសុវត្ថិភាពរបស់ Google ព្រោះវាត្រូវបានបែកធ្លាយជាសាធារណៈ (ឧទាហរណ៍៖ ការបង្ហោះក្រមជាសកលលើ GitHub)។ 
-                <strong>ដំណោះស្រាយ៖</strong> សូមចូលទៅបង្កើត API Key ថ្មីនៅលើ <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="underline font-bold hover:text-red-900 dark:hover:text-white">Google AI Studio</a> រួចកំណត់កូនសោថ្មីនោះក្នុងប៊ូតុង <strong>Secrets</strong> នៃម៉ឺនុយ <strong>Settings</strong> នៅផ្នែកខាងលើខាងស្តាំនៃផ្ទំាំងដឹកនាំនេះ។
-              </p>
-              <p className="text-[10px] text-red-600 dark:text-rose-400 font-mono mt-1">
-                Engine Code: PERMISSION_DENIED / Leaked Key 403. Using sandbox dynamic simulator sandbox as backup.
-              </p>
-            </div>
-          </div>
-          <button 
-            onClick={() => setApiKeyError(false)} 
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-100 hover:bg-red-200 dark:bg-rose-900/40 dark:hover:bg-rose-900/60 dark:text-rose-300 transition-colors shrink-0 max-w-fit self-start md:self-center"
-          >
-            យល់ព្រម (Dismiss)
-          </button>
-        </div>
-      )}
+      <main className="flex-1 flex flex-col lg:flex-row min-w-0 bg-[#FAF7F2] dark:bg-[#121614]">
+        {/* Left Side: Creative Stage, Uploader or Main Workspace Canvas */}
+        <div className="flex-1 p-6 flex flex-col min-w-0">
+          <MetricCards
+            confidence={analysis ? analysis.overallStats.grammarSpacerScore : 0}
+            grammarScore={analysis ? analysis.overallStats.grammarSpacerScore : 0}
+            marketingScore={analysis ? analysis.overallStats.marketingImpactScore : 0}
+            layoutAdvice={analysis ? analysis.layoutAdvice : {
+              hasOverlapIssue: false,
+              overlapDetails: null,
+              spacingDistributionRating: 'Normal',
+              aestheticVibeMatch: 'Minimal'
+            }}
+          />
 
-      {/* Main Body Layout Split */}
-      <main className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden max-w-[1920px] mx-auto w-full">
-        
-        {/* Left Side: Canva Interactive Visual Canvas Workspace */}
-        <div className="flex-1 p-4 lg:p-6 flex flex-col lg:overflow-y-auto">
-          {analysis && (
-            <MetricCards 
-              confidence={analysis.overallStats.confidenceScore}
-              grammarScore={analysis.overallStats.grammarSpacerScore}
-              marketingScore={analysis.overallStats.marketingImpactScore}
-              layoutAdvice={analysis.layoutAdvice}
-            />
+          <CanvaWorkspace
+            imageSrc={imageSrc}
+            onImageUploaded={handleImageUpload}
+            items={analysis ? analysis.items : []}
+            selectedItemId={selectedItemId}
+            onSelectItem={(id) => setSelectedItemId(id)}
+            isProcessing={isProcessing}
+            onLoadSample={handleLoadSample}
+          />
+
+          {fileName && (
+            <div className="mt-4 bg-white dark:bg-zinc-900 border border-[#ECE7DC] dark:border-zinc-800/80 px-4 py-3 rounded-xl flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+              <div className="flex items-center gap-3">
+                <span className="w-2 h-2 rounded-full bg-[#4A6D5D] animate-ping" />
+                <span>ឈ្មោះឯកសារ៖ <strong className="text-[#2D3330] dark:text-zinc-200">{fileName}</strong></span>
+                <span>ទំហំ៖ <strong>{fileSize}</strong></span>
+              </div>
+              <span className="text-[#4A6D5D] dark:text-emerald-400 font-bold bg-[#E6EFEA] dark:bg-emerald-950/20 px-2 py-0.5 rounded">ប្រព័ន្ធដំណើរការបានល្អបំផុត (Optimal)</span>
+            </div>
           )}
-
-          <div className="flex-1 flex flex-col">
-            <CanvaWorkspace 
-              imageSrc={imageSrc}
-              onImageUploaded={handleImageUpload}
-              items={analysis?.items || []}
-              selectedItemId={selectedItemId}
-              onSelectItem={(id) => setSelectedItemId(id)}
-              isProcessing={isProcessing}
-              onLoadSample={handleLoadSample}
-            />
-          </div>
-
-          {/* Quick Stats Footer */}
-          <div className="mt-4 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono font-medium text-slate-500 dark:text-zinc-400 border-t border-slate-200/60 dark:border-zinc-800/65 pt-3 gap-2">
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Secure Live OCR
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-indigo-500" /> Khmer Unicode Normalized
-              </span>
-            </div>
-            <div>
-              {analysis && (
-                <div className="flex items-center gap-3">
-                  <span>គម្រោង៖ <strong className="text-slate-800 dark:text-zinc-200">{fileName}</strong></span>
-                  <span>ទំហំ៖ <strong>{fileSize}</strong></span>
-                  <span className="text-indigo-600 dark:text-indigo-400 font-bold">ប្រព័ន្ធដំណើរការបានល្អបំផុត (Optimal)</span>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Right Side Control Center & AI Cognitive Panel representing "Clean Utility / Minimal" */}
@@ -837,15 +779,15 @@ export default function App() {
           {/* Workspaces Panel */}
           {activePanel === 'corrections' && (
             <div className="flex-1 flex flex-col lg:overflow-hidden">
-              <div className="p-5 border-b border-slate-100 dark:border-zinc-800/80 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30">
+              <div className="p-5 border-b border-slate-100 dark:border-zinc-800/80 flex items-center justify-between bg-[#FAF7F2] dark:bg-zinc-900/30">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
-                  <h3 className="font-bold text-sm text-slate-800 dark:text-zinc-200 uppercase tracking-wider">
-                    ផ្ទាំងវិភាគដិតដល់ (AI Deep Audit)
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#4A6D5D] animate-pulse" />
+                  <h3 className="font-bold text-xs text-slate-800 dark:text-zinc-200 uppercase">
+                    ផ្ទាំងពិនិត្យអក្ខរាវិរុទ្ធ
                   </h3>
                 </div>
                 {analysis && (
-                  <span className="text-[10px] font-mono bg-indigo-50 dark:bg-zinc-800 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded">
+                  <span className="text-[10px] font-mono bg-[#E6EFEA] dark:bg-[#324B3F]/40 text-[#4A6D5D] dark:text-emerald-400 font-bold px-2 py-0.5 rounded border border-[#CEE2D7]/30">
                     {analysis.items.length} ឃ្លាបានរកឃើញ
                   </span>
                 )}
@@ -869,7 +811,7 @@ export default function App() {
                     {activeItem ? (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-2">
-                          <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1">
+                          <span className="text-[11px] font-bold text-[#4A6D5D] dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
                             <Info className="w-3.5 h-3.5" /> ព័ត៌មានលម្អិតពីពាក្យដែលបានជ្រើសរើស (Selected Block)
                           </span>
                           <span className="text-[10px] font-mono text-slate-400">
@@ -882,7 +824,7 @@ export default function App() {
                           <div className="flex items-center justify-between">
                             <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md ${
                               activeItem.category === 'spelling' ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/30' :
-                              activeItem.category === 'grammar' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/30' :
+                              activeItem.category === 'grammar' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/30' :
                               activeItem.category === 'spacing' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/30' :
                               activeItem.category === 'typography' ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-200/30' :
                               activeItem.category === 'tone' ? 'bg-pink-50 dark:bg-pink-950/40 text-pink-600 dark:text-pink-400 border border-pink-200/30' :
@@ -916,7 +858,7 @@ export default function App() {
                                 </p>
                                 <button
                                   onClick={() => copyToClipboard(activeItem.correctedText || '', 'suggested')}
-                                  className="absolute right-2.5 top-2.5 p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-amber-400 transition-colors"
+                                  className="absolute right-2.5 top-2.5 p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg text-slate-400 hover:text-[#4A6D5D] dark:hover:text-amber-400 transition-colors"
                                   title="Copy text"
                                 >
                                   {copiedText === 'suggested' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -927,7 +869,7 @@ export default function App() {
 
                           <div>
                             <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">ការណែនាំពីបញ្ញាសិប្បនិម្មិត (AI Explanation):</span>
-                            <p className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed bg-indigo-50/20 dark:bg-zinc-900 p-3 rounded-xl border border-indigo-100/50 dark:border-zinc-800/40">
+                            <p className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed bg-[#FAF7F2] dark:bg-zinc-950 p-3 rounded-xl border border-[#ECE7DC] dark:border-zinc-800/40">
                               {activeItem.explanation}
                             </p>
                           </div>
@@ -953,10 +895,10 @@ export default function App() {
                                     <span className="text-slate-800 dark:text-zinc-200 font-semibold">{alt}</span>
                                     <button
                                       onClick={() => copyToClipboard(alt, `alt_${aid}`)}
-                                      className="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-slate-400 hover:text-violet-600 transition-colors"
+                                      className="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-slate-400 hover:text-[#4A6D5D] transition-colors"
                                       title="Copy option"
                                     >
-                                      {copiedText === `alt_${aid}` ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                      {copiedText === `alt_${aid}` ? <Check className="w-3" /> : <Copy className="w-3.5 h-3.5" />}
                                     </button>
                                   </div>
                                 ))}
@@ -983,7 +925,7 @@ export default function App() {
                             onClick={() => setSelectedItemId(item.id)}
                             className={`w-full text-left p-3 rounded-xl border transition-all duration-150 flex items-center justify-between text-xs ${
                               selectedItemId === item.id
-                                ? 'bg-indigo-50 border-indigo-200 dark:bg-zinc-800 dark:border-zinc-700'
+                                ? 'bg-[#E6EFEA] border-[#4A6D5D]/50 dark:bg-[#324B3F]/20 dark:border-[#4A6D5D]/40'
                                 : 'bg-white hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 border-slate-200/60 dark:border-zinc-800/65'
                             }`}
                           >
@@ -991,7 +933,7 @@ export default function App() {
                               <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-sm inline-block ${
                                 item.category === 'spelling' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' :
                                 item.category === 'ok' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' :
-                                'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300'
+                                'bg-emerald-100 text-[#4A6D5D] dark:bg-emerald-950/40 dark:text-[#E6EFEA]'
                               }`}>
                                 {item.category.toUpperCase()}
                               </span>
@@ -1003,7 +945,7 @@ export default function App() {
                               ) : (
                                 <span className="text-[10px] text-slate-400">ធម្មតា</span>
                               )}
-                              <ChevronRight className={`w-3.5 h-3.5 ${selectedItemId === item.id ? 'text-indigo-600' : 'text-slate-400'}`} />
+                              <ChevronRight className={`w-3.5 h-3.5 ${selectedItemId === item.id ? 'text-[#4A6D5D]' : 'text-slate-400'}`} />
                             </div>
                           </button>
                         ))}
@@ -1012,14 +954,14 @@ export default function App() {
 
                     {/* Marketing hooks generated by Gemini for Design context */}
                     {analysis.marketingHooks && analysis.marketingHooks.length > 0 && (
-                      <div className="bg-gradient-to-tr from-violet-600 to-indigo-750 text-white rounded-2xl p-4 mt-4 space-y-3 shadow-md shadow-indigo-500/10">
+                      <div className="bg-gradient-to-tr from-[#3E5C4E] to-[#4A6D5D] text-white rounded-2xl p-4 mt-4 space-y-3 shadow-md shadow-[#4a6d5d]/10">
                         <div className="flex items-center gap-2">
                           <Sparkles className="w-4 h-4 text-amber-300" />
                           <h4 className="text-xs font-bold uppercase tracking-wider">
                             ស្លោកផ្សាយពាណិជ្ជកម្មបន្ថែម (AI Recommendations)
                           </h4>
                         </div>
-                        <p className="text-[10px] text-violet-100/90 leading-relaxed">
+                        <p className="text-[10px] text-emerald-100 leading-relaxed">
                           Gemini has crafted these 3 high-impact ad headers matching this flyer's detected visual mood:
                         </p>
                         <div className="space-y-2 text-xs">
@@ -1031,9 +973,9 @@ export default function App() {
                               <span className="font-semibold leading-relaxed max-w-[85%]">{hook}</span>
                               <button
                                 onClick={() => copyToClipboard(hook, `hook_${hid}`)}
-                                className="p-1 text-violet-200 hover:text-white transition-colors"
+                                className="p-1 text-emerald-100 hover:text-white transition-colors"
                               >
-                                {copiedText === `hook_${hid}` ? <Check className="w-3 h-3 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+                                {copiedText === `hook_${hid}` ? <Check className="w-3" /> : <Copy className="w-3.5 h-3.5" />}
                               </button>
                             </div>
                           ))}
@@ -1046,7 +988,7 @@ export default function App() {
                       <button
                         onClick={handleExportPDF}
                         disabled={isExportingPdf}
-                        className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-650 hover:from-violet-550 hover:to-indigo-550 text-white rounded-xl py-3 text-xs font-bold shadow-md shadow-indigo-500/10 cursor-pointer active:scale-[0.98] transition-all ${
+                        className={`w-full flex items-center justify-center gap-2 bg-[#4A6D5D] hover:bg-[#3E5C4E] dark:bg-[#324B3F] dark:hover:bg-emerald-800 text-white rounded-xl py-3 text-xs font-bold shadow-md shadow-[#4a6d5d]/10 cursor-pointer active:scale-[0.98] transition-all ${
                           isExportingPdf ? 'opacity-80 cursor-wait' : ''
                         }`}
                       >
@@ -1090,11 +1032,11 @@ export default function App() {
           {/* Rewrite and Slogan Modes */}
           {activePanel === 'rewrite' && (
             <div className="flex-1 flex flex-col lg:overflow-hidden">
-              <div className="p-5 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/30">
+              <div className="p-5 border-b border-slate-100 dark:border-zinc-800/80 bg-[#FAF7F2] dark:bg-zinc-900/30">
                 <div className="flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-violet-600" />
-                  <h3 className="font-bold text-sm text-slate-800 dark:text-zinc-200 uppercase tracking-widest">
-                    AI Copywriting & Tone Transformer
+                  <Sliders className="w-4 h-4 text-[#4A6D5D]" />
+                  <h3 className="font-bold text-xs text-[#2D3330] dark:text-zinc-200 uppercase">
+                    ការសរសេរអត្ថបទដោយប្រើ AI (Beta V1)
                   </h3>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-0.5 uppercase">
@@ -1106,12 +1048,12 @@ export default function App() {
                 
                 {/* Text Area */}
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase">ឃ្លាភាសាខ្មែរដៅ (Target Slogan / Slogan Input)</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase">ឃ្លាភាសាដើម</label>
                   <textarea
                     value={rewriteInput}
                     onChange={(e) => setRewriteInput(e.target.value)}
                     rows={3}
-                    className="w-full p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-950/20 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 focus:outline-hidden dark:text-zinc-200"
+                    className="w-full p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/40 dark:bg-zinc-950/20 text-sm focus:ring-2 focus:ring-[#4A6D5D] focus:border-[#4A6D5D] focus:outline-hidden dark:text-zinc-200"
                     placeholder="ឧទាហរណ៍៖ ទិញ1ថែម1 ឆាប់ឡើង!!"
                   />
                 </div>
@@ -1133,12 +1075,12 @@ export default function App() {
                         onClick={() => setSelectedTone(t.key as ToneMode)}
                         className={`p-2.5 rounded-xl border text-left transition-all ${
                           selectedTone === t.key
-                            ? 'bg-gradient-to-r from-violet-600 to-indigo-650 text-white border-transparent shadow-xs'
+                            ? 'bg-gradient-to-r from-[#4A6D5D] to-[#3E5C4E] text-white border-transparent shadow-xs'
                             : 'bg-white hover:bg-slate-50 dark:bg-zinc-900 border-slate-200/60 dark:border-zinc-800/60 dark:hover:bg-zinc-800'
                         }`}
                       >
                         <div className="text-xs font-bold">{t.label}</div>
-                        <div className={`text-[9px] mt-0.5 ${selectedTone === t.key ? 'text-violet-100' : 'text-slate-400'}`}>
+                        <div className={`text-[9px] mt-0.5 ${selectedTone === t.key ? 'text-[#CEE2D7] dark:text-emerald-300' : 'text-slate-400'}`}>
                           {t.desc}
                         </div>
                       </button>
@@ -1174,7 +1116,7 @@ export default function App() {
                 <button
                   onClick={handleSmartRewrite}
                   disabled={isRewriting}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl py-2.5 text-xs font-bold shadow-md shadow-indigo-500/10 flex items-center justify-center gap-2 duration-150"
+                  className="w-full bg-[#4A6D5D] hover:bg-[#3E5C4E] disabled:bg-[#4A6D5D]/55 text-white rounded-xl py-2.5 text-xs font-bold shadow-md shadow-[#4a6d5d]/10 flex items-center justify-center gap-2 duration-150"
                 >
                   {isRewriting ? (
                     <>
@@ -1238,173 +1180,9 @@ export default function App() {
             </div>
           )}
 
-          {/* Dictionary Panel */}
-          {activePanel === 'dictionary' && (
-            <div className="flex-1 flex flex-col lg:overflow-hidden">
-              <div className="p-5 border-b border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/30">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-violet-600" />
-                  <h3 className="font-bold text-sm text-slate-800 dark:text-zinc-200 uppercase tracking-widest">
-                    Corporate Terminology Dictionary
-                  </h3>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  Force specific Khmer replacements instead of generic corrections
-                </p>
-              </div>
-
-              <div className="flex-1 lg:overflow-y-auto p-5 space-y-5">
-                
-                {/* Form to insert dictionary terms */}
-                <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/20 space-y-3">
-                  <h4 className="text-xs font-semibold text-slate-700 dark:text-zinc-300 uppercase">
-                    បន្ថែមវាក្យសព្ទថ្មី (Add Vocabulary Enforcement)
-                  </h4>
-                  
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="ពាក្យសរសេរខុស (Original e.g., ព្រី)"
-                      value={newDictTerm}
-                      onChange={(e) => setNewDictTerm(e.target.value)}
-                      className="w-full p-2 text-xs border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg text-slate-900 dark:text-zinc-200"
-                    />
-                    <input
-                      type="text"
-                      placeholder="ពាក្យកែតម្រូវឯកភាព (Replacement e.g., ឥតគិតថ្លៃ)"
-                      value={newDictReplacement}
-                      onChange={(e) => setNewDictReplacement(e.target.value)}
-                      className="w-full p-2 text-xs border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg text-slate-900 dark:text-zinc-200"
-                    />
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={newDictCategory}
-                        onChange={(e) => setNewDictCategory(e.target.value)}
-                        className="flex-1 p-2 text-[11px] font-sans border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg text-slate-700 dark:text-zinc-200"
-                      >
-                        <option value="Urgency term">ពាក្យបន្ទាន់ (Urgency marker)</option>
-                        <option value="Loan words">ពាក្យកម្ចី (Loan words)</option>
-                        <option value="Formatting">ទម្រង់អត្ថបទ (Formatting)</option>
-                        <option value="Standard">ស្តង់ដារប្រ៊ែន (Brand Standard)</option>
-                      </select>
-                      <button
-                        onClick={addDictionaryItem}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 rounded-lg text-xs font-semibold flex items-center justify-center shrink-0"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* List of current vocab term definitions */}
-                <div className="space-y-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-                    Active Brand Term Definitions ({dictionary.length})
-                  </span>
-                  <div className="space-y-1.5">
-                    {dictionary.map((item) => (
-                      <div 
-                        key={item.id}
-                        className="flex items-center justify-between p-3 rounded-xl border border-slate-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs"
-                      >
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-slate-500 line-through">{item.term}</span>
-                            <ArrowRight className="w-3 h-3 text-slate-400" />
-                            <span className="font-bold text-indigo-600 dark:text-indigo-400">{item.replacement}</span>
-                          </div>
-                          <span className="text-[9px] text-slate-400 uppercase tracking-wider font-mono bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded mt-1 inline-block">
-                            {item.category}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => removeDictionaryItem(item.id)}
-                          className="p-1 text-slate-400 hover:text-rose-500 rounded transition-colors"
-                          title="Remove item"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Custom Guidelines System */}
-                <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-zinc-800/80">
-                  <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-300">
-                    <Lightbulb className="w-4 h-4 text-amber-500" />
-                    <span className="text-xs font-bold uppercase tracking-widest">
-                      Custom AI Compliance Rules
-                    </span>
-                  </div>
-
-                  <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/20 space-y-3">
-                    <input
-                      type="text"
-                      placeholder="Rule Title (e.g. Always convert Arab numbers)"
-                      value={newRuleName}
-                      onChange={(e) => setNewRuleName(e.target.value)}
-                      className="w-full p-2 text-xs border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg text-slate-900 dark:text-zinc-200"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Prompt details instruction for LLM"
-                      value={newRuleDetails}
-                      onChange={(e) => setNewRuleDetails(e.target.value)}
-                      className="w-full p-2 text-xs border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg text-slate-900 dark:text-zinc-200"
-                    />
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={newRuleType}
-                        onChange={(e) => setNewRuleType(e.target.value as any)}
-                        className="flex-1 p-2 text-[11px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg text-slate-700 dark:text-zinc-300"
-                      >
-                        <option value="find_replace">ស្វែងរក និងជំនួស (Find & Replace)</option>
-                        <option value="strict_formal">កំណត់ទម្រង់ផ្លូវការ (Strict Formal)</option>
-                        <option value="always_unicode">គាំទ្រយូនីកូដ (Always Unicode)</option>
-                        <option value="force_tone">បង្ខំកែស្រទាប់សម្លេង (Force Tone Mode)</option>
-                      </select>
-                      <button
-                        onClick={addCustomRule}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 rounded-lg text-xs font-semibold"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    {customRules.map((rule) => (
-                      <div 
-                        key={rule.id}
-                        className="p-3 rounded-xl border border-slate-200/50 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900 text-xs text-left"
-                      >
-                        <div className="flex items-center justify-between font-bold text-slate-800 dark:text-zinc-200 mb-1">
-                          <span>{rule.name}</span>
-                          <button
-                            onClick={() => removeCustomRule(rule.id)}
-                            className="p-1 text-slate-400 hover:text-rose-500 rounded"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-tight">
-                          {rule.details}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                </div>
-
-              </div>
-            </div>
-          )}
-
           {/* Instant Design Guideline Help Footer representing clean utilities */}
           <div className="p-4 border-t border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 flex items-center gap-2.5 text-[11px] text-slate-500 dark:text-zinc-400">
-            <Info className="w-4 h-4 text-indigo-500 shrink-0" />
+            <Info className="w-4 h-4 text-[#4A6D5D] shrink-0" />
             <p className="leading-tight">
               គាំទ្រស្តង់ដារលំហូរតួអក្សរខ្មែរយូនីកូដ (Khmer Unicode Normalization sequence correctors)។
             </p>
@@ -1430,10 +1208,10 @@ export default function App() {
           }}
         >
           {/* Header Block with high contrast branding */}
-          <div className="flex justify-between items-start border-b-2 border-indigo-700 pb-4">
+          <div className="flex justify-between items-start border-b-2 border-[#4A6D5D] pb-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                <span className="text-indigo-700">អក្សរាការ</span> - របាយការណ៍វិភាគ និងកែអក្ខរាវិរុទ្ធ
+                <span className="text-[#4A6D5D]">អក្ខរាវិរុទ្ធខ្មែរ</span> - របាយការណ៍វិភាគ និងកែអក្ខរាវិរុទ្ធ
               </h1>
               <p className="text-xs text-slate-500 font-mono mt-1">
                 KHMER POSTER PROOFING & DESIGN AUDIT REPORT • POWERED BY GEMINI AI
@@ -1452,7 +1230,7 @@ export default function App() {
             <div className="w-[45%] flex flex-col justify-start">
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col space-y-3 h-full justify-between">
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-700 mb-2 flex items-center gap-1.5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#4A6D5D] mb-2 flex items-center gap-1.5">
                     🔘 ផ្ទាំងរូបភាពផ្សាយពាណិជ្ជកម្ម និងចំណុចកំហុស (Annotated Poster Layout)
                   </h3>
                   <div className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-900/5 p-1">
@@ -1469,7 +1247,7 @@ export default function App() {
                           key={item.id}
                           className={`absolute border-2 rounded-sm flex items-center justify-start ${
                             item.category === 'spelling' ? 'border-rose-500 bg-rose-500/10' :
-                            item.category === 'grammar' ? 'border-indigo-500 bg-indigo-500/10' :
+                            item.category === 'grammar' ? 'border-[#4A6D5D] bg-[#4A6D5D]/10' :
                             item.category === 'spacing' ? 'border-amber-500 bg-amber-500/10' :
                             item.category === 'typography' ? 'border-sky-500 bg-sky-500/10' :
                             'border-pink-500 bg-pink-500/10'
@@ -1500,7 +1278,7 @@ export default function App() {
             <div className="w-[55%] flex flex-col space-y-4">
               {/* Score indicators */}
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-700 mb-1 flex items-center gap-1.5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#4A6D5D] mb-1 flex items-center gap-1.5">
                   📈 សូចនាករវាយតម្លៃរួម (Linguistic Metrics & Performance Index)
                 </h3>
                 
@@ -1515,9 +1293,9 @@ export default function App() {
 
                   <div className="bg-white border border-slate-200/80 p-2.5 rounded-xl text-center">
                     <span className="text-[10px] text-slate-400 block font-bold uppercase">Confidence Score</span>
-                    <strong className="text-lg font-mono text-indigo-600 block mt-0.5">{analysis.overallStats.confidenceScore}%</strong>
+                    <strong className="text-lg font-mono text-[#4A6D5D] block mt-0.5">{analysis.overallStats.confidenceScore}%</strong>
                     <div className="w-full bg-slate-100 h-1.5 rounded-full mt-1 overflow-hidden">
-                      <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${analysis.overallStats.confidenceScore}%` }} />
+                      <div className="bg-[#4A6D5D] h-full rounded-full" style={{ width: `${analysis.overallStats.confidenceScore}%` }} />
                     </div>
                   </div>
 
@@ -1533,7 +1311,7 @@ export default function App() {
 
               {/* Layout Advice */}
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-700 mb-1">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#4A6D5D] mb-1">
                   📐 វិភាគលើរូបរាង និងការចាត់ចែងអត្ថបទ (Layout & Spatial Review)
                 </h3>
                 <div className="grid grid-cols-2 gap-3 text-xs leading-relaxed">
@@ -1559,12 +1337,12 @@ export default function App() {
 
               {/* Marketing Suggestions */}
               {analysis.marketingHooks && analysis.marketingHooks.length > 0 && (
-                <div className="bg-indigo-900 text-white rounded-2xl p-4 flex-1 flex flex-col justify-between">
+                <div className="bg-[#3E5C4E] text-white rounded-2xl p-4 flex-1 flex flex-col justify-between">
                   <div>
                     <h4 className="text-[10px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1">
                       ✨ ស្លោកផ្សាយពាណិជ្ជកម្មបន្ថែម (AI Recommendation Headline Hooks)
                     </h4>
-                    <p className="text-[9px] text-indigo-100 mt-1 mb-2 leading-relaxed">
+                    <p className="text-[9px] text-emerald-100 mt-1 mb-2 leading-relaxed">
                       Gemini optimized sales-copy suggestions for target Cambodian viewers based on flyer's graphics category:
                     </p>
                   </div>
@@ -1586,7 +1364,7 @@ export default function App() {
 
           {/* Second Part: Detailed Correction Log Table */}
           <div className="flex-1 flex flex-col pt-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-700 mb-2.5 flex items-center gap-1.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#4A6D5D] mb-2.5 flex items-center gap-1.5">
               📝 បញ្ជីចំណុចកំហុសលម្អិត និងជម្រើសកែប្រែ (Linguistic Corrections Log)
             </h3>
 
@@ -1608,7 +1386,7 @@ export default function App() {
                       <td className="p-2.5 font-bold uppercase">
                         <span className={`px-2 py-0.5 rounded text-[9px] font-mono leading-none ${
                           item.category === 'spelling' ? 'bg-rose-100 text-rose-700 border border-rose-200' :
-                          item.category === 'grammar' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' :
+                          item.category === 'grammar' ? 'bg-emerald-100 text-[#4A6D5D] border border-emerald-200' :
                           item.category === 'spacing' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
                           item.category === 'typography' ? 'bg-sky-100 text-sky-700 border border-sky-200' :
                           'bg-pink-100 text-pink-700 border border-pink-200'
@@ -1623,7 +1401,7 @@ export default function App() {
                       <td className="p-2.5 text-slate-600 text-[11px] leading-relaxed">
                         <p className="font-semibold text-slate-800">{item.explanation}</p>
                         {item.alternatives && item.alternatives.length > 0 && (
-                          <div className="mt-1 text-[10px] text-indigo-600 flex gap-1">
+                          <div className="mt-1 text-[10px] text-[#4A6D5D] flex gap-1">
                             <span className="font-bold">ជម្រើសផ្សេងទៀត៖</span>
                             <span className="italic">{item.alternatives.join(' | ')}</span>
                           </div>
@@ -1641,7 +1419,7 @@ export default function App() {
 
           {/* Page Footer representing standard certifications and signature */}
           <div className="flex justify-between items-center text-[10px] text-slate-400 font-mono mt-auto pt-4 border-t border-slate-100">
-            <div>អក្សរាការ™ (Khmer Proofing Engine) • Copyright © 2026. All rights preserved.</div>
+            <div>អក្ខរាវិរុទ្ធខ្មែរ™ (Khmer Spell Checker) • Copyright © 2026. All rights preserved.</div>
             <div className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-100 font-sans font-bold flex items-center gap-1">
               <span>🛡️ Secure AI Proof Certificate</span>
             </div>

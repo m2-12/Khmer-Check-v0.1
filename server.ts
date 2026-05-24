@@ -31,7 +31,11 @@ async function startServer() {
 
   // API Route for healthcheck
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", time: new Date().toISOString() });
+    res.json({ 
+      status: "ok", 
+      time: new Date().toISOString(),
+      hasApiKey: !!apiKey && apiKey !== "MOCK_KEY_IF_NOT_CONFIGURED"
+    });
   });
 
   // API Route to process poster images (multimodal OCR + Khmer spelling & grammar correction)
@@ -46,12 +50,12 @@ async function startServer() {
         imageBase64.startsWith("https://")
       ) {
         // Safe fallback demo data
-        return res.json(getDemoAnalysis(mimeType, customRules));
+        return res.json({ ...getDemoAnalysis(mimeType, customRules), isMock: true });
       }
 
       if (!apiKey || apiKey === "MOCK_KEY_IF_NOT_CONFIGURED") {
         // Safe fallback demo data if no key is configured yet
-        return res.json(getDemoAnalysis(mimeType, customRules));
+        return res.json({ ...getDemoAnalysis(mimeType, customRules), isMock: true });
       }
 
       // Convert standard clean base64 format (removing prefix if provided by client)
@@ -206,7 +210,7 @@ Return the entire analysis STRICTLY formatted according to the provided JSON Sch
 
       if (!apiKey || apiKey === "MOCK_KEY_IF_NOT_CONFIGURED") {
         // Mock fallback if environment key is blank
-        return res.json(getDemoRewrite(text, tone, lengthMode));
+        return res.json({ ...getDemoRewrite(text, tone, lengthMode), isMock: true });
       }
 
       const vocabularyInstructions = brandVocabulary.length > 0
