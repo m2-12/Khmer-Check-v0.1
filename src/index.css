@@ -48,23 +48,7 @@ body.dark {
   display: none;
 }
 
-/* 
- * =========================================================================
- * Browser Extension & Brave Shield Fix (bis_skin_checked)
- * =========================================================================
- * Prevent Brave Browser and third-party styling extensions from injecting 
- * stylesheet overrides that alter size, shape, absolute positions, padding,
- * and layouts on any element marked with 'bis_skin_checked'.
- */
-[bis_skin_checked] {
-  /* Ensure element sizing aligns perfectly with the box model */
-  box-sizing: border-box !important;
-  /* Block extension-induced dimension forced constraints (e.g. min-height or auto padding limits) */
-  max-width: revert !important;
-  max-height: revert !important;
-  margin: revert !important;
-  padding: revert !important;
-}
+
 
 /* Protect coordinate accuracy of canvas bounding overlay items with bis_skin_checked attributes */
 div[bis_skin_checked].absolute,
