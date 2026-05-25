@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Upload, FileText, CheckCircle, AlertTriangle, Sparkles, BookOpen, 
   Layers, Users, Sliders, ChevronRight, Copy, Check, Download, 
@@ -253,6 +253,16 @@ export default function App() {
         "សាកល្បងរសជាតិថ្មីនៃទំនុកចិត្តជាមួយផលិតផលស្តង់ដារលំដាប់ខ្ពស់",
         "ឱកាសមិនអាចរំលងបាន! រាល់ការជាវរបស់លោកអ្នកនឹងទទួលបានការបន្ថែមជូនភ្លាមៗ"
       ],
+      legalCompliance: {
+        isCompliant: false,
+        hasKhmerAboveForeign: true,
+        isKhmerSizeCompliant: false,
+        complianceScore: 72,
+        complianceWarnings: [
+          "អក្សរខ្មែរ 'ទិញ1ថែម1 ឆាប់ឡើង!!' ហាក់បីដូចជាតូចជាង ឬស្មើនឹងអត្ថបទឡាតាំង។ តាមអនុក្រឹត្យលេខ ១៣២ នៃច្បាប់ប្រទេសកម្ពុជា អក្សរខ្មែរត្រូវតែមានទំហំធំជាងអក្សរបរទេសយ៉ាងតិច ២ ដង។",
+          "ការនាំចូលវាក្យសព្ទ ឬក្បួនគំរូអាចជាកត្តានាំឲ្យមានលក្ខខណ្ឌចង្អុលបង្ហាញបន្ថែម។"
+        ]
+      },
       items
     };
   };
@@ -353,6 +363,7 @@ export default function App() {
         overallStats: data.overallStats || { confidenceScore: 89, grammarSpacerScore: 91, marketingImpactScore: 84 },
         layoutAdvice: data.layoutAdvice || { hasOverlapIssue: false, overlapDetails: null, spacingDistributionRating: "Balanced layout", aestheticVibeMatch: "Standard Digital Post" },
         marketingHooks: data.marketingHooks || [],
+        legalCompliance: data.legalCompliance,
         items: data.items || []
       };
 
@@ -377,13 +388,8 @@ export default function App() {
       ]);
 
     } catch (err: any) {
-      console.warn("Express server for OCR is offline or static hosting (Netlify) is active. Running robust client-side simulation fallback.", err);
-      const errStr = String(err.message || err || "");
-      if (errStr.toLowerCase().includes("leaked") || errStr.toLowerCase().includes("permission_denied") || errStr.includes("403")) {
-        setApiKeyError(true);
-      }
-      
-      // Execute dynamic mock generator
+      console.warn("Express server for OCR is offline. Running simulation fallback.", err);
+      // Run fallback reader
       const fallbackReader = new FileReader();
       fallbackReader.onload = () => {
         const fallbackBase64 = fallbackReader.result as string;
@@ -411,6 +417,41 @@ export default function App() {
       setIsProcessing(false);
     }
   };
+
+  // Support pasting image anywhere on the page to upload
+  const latestImageUploadRef = useRef(handleImageUpload);
+  useEffect(() => {
+    latestImageUploadRef.current = handleImageUpload;
+  }, [handleImageUpload]);
+
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      if (activePanel === 'corrections' && !isProcessing) {
+        const items = event.clipboardData?.items;
+        if (!items) return;
+
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (item.type.indexOf('image') !== -1) {
+            const file = item.getAsFile();
+            if (file) {
+              const finalFile = file.name && file.name !== 'image.png' 
+                ? file 
+                : new File([file], `paste-${new Date().toLocaleTimeString('km-KH').replace(/\s/g, '').replace(/:/g, '-')}.png`, { type: file.type });
+              latestImageUploadRef.current(finalFile);
+              event.preventDefault();
+              break; // Handle single pasted image
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => {
+      window.removeEventListener('paste', handlePaste);
+    };
+  }, [activePanel, isProcessing]);
 
   const handleExportPDF = async () => {
     if (!analysis) return;
@@ -494,6 +535,16 @@ export default function App() {
       // Override text items based on the loaded niche specifically
       if (sampleKey === 'coffee') {
         data.layoutAdvice.aestheticVibeMatch = "Coffee Shop / Cafe Promotion";
+        data.legalCompliance = {
+          isCompliant: false,
+          hasKhmerAboveForeign: true,
+          isKhmerSizeCompliant: false,
+          complianceScore: 68,
+          complianceWarnings: [
+            "អក្សរខ្មែរ 'ទិញ1ថែម1 ឆាប់ឡើង!!' មានទំហំតូចជាង ឬស្មើនឹងអក្សរអង់គ្លេស 'COFFEE & TEA'។ តាមច្បាប់ផ្សព្វផ្សាយរបស់ព្រះរាជាណាចក្រកម្ពុជា អក្សរខ្មែរត្រូវតែមានទំហំធំជាងអក្សរបរទេសយ៉ាងតិច ២ ដង (Khmer text must be at least twice as large as foreign labels on signboards).",
+            "រកឃើញកំហុសអក្ខរាវិរុទ្ធលើពាក្យ 'ហាងយើងខ្ញុំមានលក់បាយ' សរសេរខុសស្រះ ុំ (ជាន់គ្នាស្រះ)។ ស្លាកផ្សព្វផ្សាយសាធារណៈមិនត្រូវមានអក្សរខុសឡើយដើម្បីជៀសវាងការផាកពិន័យរបស់ក្រសួងព័ត៌មាន។"
+          ]
+        };
         data.items = [
           {
             id: "coffee_1",
@@ -522,6 +573,16 @@ export default function App() {
         data.layoutAdvice.aestheticVibeMatch = "Premium Beauty & Cosmetics";
         data.layoutAdvice.overlapDetails = "Text blocks slightly bleed into main facial shadows.";
         data.overallStats.grammarSpacerScore = 65;
+        data.legalCompliance = {
+          isCompliant: false,
+          hasKhmerAboveForeign: false,
+          isKhmerSizeCompliant: true,
+          complianceScore: 55,
+          complianceWarnings: [
+            "រកឃើញអត្ថបទភាសាបរទេស (English brand labels) នៅផ្នែកកំពូលខាងលើអក្សរខ្មែរ។ តាមច្បាប់សញ្ញាទេសចរណ៍ និងផ្សព្វផ្សាយពាណិជ្ជកម្មកម្ពុជា អក្សរខ្មែរត្រូវតែស្ថិតនៅលើគេបង្អស់នៃរាល់ភាសាបរទេស (Khmer text layout must be located above any alternate languages).",
+            "ពាក្យ 'ព្រីថ្លៃដឹក' ប្រើពាក្យខ្ចីបរទេស 'ព្រី' (Free) ជំនួសភាសាខ្មែរផ្លូវការ។ គួរជំនួសមកវិញជាភាសាខ្មែរផ្លូវការ 'ឥតគិតថ្លៃដឹកជញ្ជូន' ដើម្បីលក្ខណៈច្បាប់ និងកម្រិតប្រណីតភាពស្ថាប័ន។"
+          ]
+        };
         data.items = [
           {
             id: "cos_1",
@@ -554,6 +615,15 @@ export default function App() {
           spacingDistributionRating: "Excellent spacing rhythm",
           aestheticVibeMatch: "Music Festival Poster"
         };
+        data.legalCompliance = {
+          isCompliant: false,
+          hasKhmerAboveForeign: true,
+          isKhmerSizeCompliant: true,
+          complianceScore: 80,
+          complianceWarnings: [
+            "ពាក្យ 'ខនសឺត' និង 'មហោស្រប' មានចំណុចអក្ខរាវិរុទ្ធមិនត្រឹមត្រូវតាមវចនានុក្រមសម្ដេចព្រះសង្ឃរាជ ជូន ណាត។ គួរកែសម្រួលដើម្បីទទួលបានអាជ្ញាប័ណ្ណផ្សព្វផ្សាយផ្លូវការពីក្រសួងព័ត៌មាន។"
+          ]
+        };
         data.items = [
           {
             id: "evt_1",
@@ -578,6 +648,7 @@ export default function App() {
         overallStats: data.overallStats,
         layoutAdvice: data.layoutAdvice,
         marketingHooks: data.marketingHooks,
+        legalCompliance: data.legalCompliance,
         items: data.items
       });
       setSelectedItemId(data.items[0]?.id || null);
@@ -807,7 +878,7 @@ export default function App() {
                   </h3>
                 </div>
                 {analysis && (
-                  <span className="text-[10px] font-mono bg-[#E6EFEA] dark:bg-[#324B3F]/40 text-[#4A6D5D] dark:text-emerald-400 font-bold px-2 py-0.5 rounded border border-[#CEE2D7]/30">
+                  <span className="text-xs font-mono bg-[#E6EFEA] dark:bg-[#324B3F]/40 text-[#4A6D5D] dark:text-emerald-400 font-bold px-2.5 py-1 rounded border border-[#CEE2D7]/30">
                     {analysis.items.length} ឃ្លាបានរកឃើញ
                   </span>
                 )}
@@ -827,14 +898,95 @@ export default function App() {
                   </div>
                 ) : (
                   <>
+                    {/* Cambodian Signage Law Audit Card (Sub-decree 132) */}
+                    {analysis && analysis.legalCompliance && (
+                      <div className="p-4 rounded-xl border border-red-200/50 dark:border-rose-950/20 bg-rose-50/10 dark:bg-rose-950/5 space-y-3 mb-4">
+                        <div className="flex items-start justify-between gap-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">⚖️</span>
+                            <div>
+                              <h4 className="font-bold text-xs text-slate-800 dark:text-zinc-200">
+                                ពិនិត្យច្បាប់ស្លាកសញ្ញា (Signage Law Check)
+                              </h4>
+                              <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">
+                                យោង៖ អនុក្រឹត្យលេខ ១៣២ ស្ដីពីការផ្សាយពាណិជ្ជកម្ម
+                              </p>
+                            </div>
+                          </div>
+                          <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 ${
+                            analysis.legalCompliance.isCompliant
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/30'
+                              : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/30'
+                          }`}>
+                            {analysis.legalCompliance.isCompliant ? '✓ ស្របច្បាប់' : '⚠️ មិនទាន់ស្របច្បាប់'}
+                          </span>
+                        </div>
+
+                        {/* Badges Layout */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/20 border border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                            <span className="text-[10px] text-slate-500 dark:text-zinc-400">ខ្មែរនៅខាងលើ</span>
+                            {analysis.legalCompliance.hasKhmerAboveForeign ? (
+                              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">✅ ត្រូវ (Top)</span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-rose-500 dark:text-rose-400">❌ ខុសលំដាប់</span>
+                            )}
+                          </div>
+                          <div className="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/20 border border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                            <span className="text-[10px] text-slate-500 dark:text-zinc-400">ទំហំធំជាង ២ ដង</span>
+                            {analysis.legalCompliance.isKhmerSizeCompliant ? (
+                              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">✅ ត្រូវ</span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-rose-500 dark:text-rose-400">❌ តូចជាង</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Progress score */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] font-semibold">
+                            <span className="text-slate-500 dark:text-zinc-400">កម្រិតអនុលោមភាពផ្លូវច្បាប់ (Compliance)</span>
+                            <span className={analysis.legalCompliance.complianceScore >= 80 ? 'text-emerald-600' : 'text-amber-500'}>
+                              {analysis.legalCompliance.complianceScore}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1 overflow-hidden">
+                            <div 
+                              className={`h-full ${
+                                analysis.legalCompliance.complianceScore >= 80 ? 'bg-emerald-500' :
+                                analysis.legalCompliance.complianceScore >= 60 ? 'bg-amber-500' : 'bg-red-500'
+                              }`} 
+                              style={{ width: `${analysis.legalCompliance.complianceScore}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Warnings */}
+                        {analysis.legalCompliance.complianceWarnings && analysis.legalCompliance.complianceWarnings.length > 0 && (
+                          <div className="pt-2 border-t border-dashed border-slate-150 dark:border-zinc-800/80 space-y-1">
+                            <span className="text-[10px] font-bold text-rose-500 flex items-center gap-1.5 uppercase tracking-wider">
+                              ⚠️ ចំណុចត្រូវកែសម្រួលដើម្បីសុំច្បាប់ផ្សព្វផ្សាយ៖
+                            </span>
+                            <ul className="space-y-1.5 list-none pl-0">
+                              {analysis.legalCompliance.complianceWarnings.map((warning, wIdx) => (
+                                <li key={wIdx} className="text-[11px] text-slate-600 dark:text-zinc-300 leading-relaxed pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-rose-500 before:font-bold">
+                                  {warning}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Active Selected Detection Audit details */}
                     {activeItem ? (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-2">
-                          <span className="text-[11px] font-bold text-[#4A6D5D] dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                          <span className="text-xs font-bold text-[#4A6D5D] dark:text-emerald-400 capitalize flex items-center gap-1">
                             <Info className="w-3.5 h-3.5" /> ព័ត៌មានលម្អិតពីពាក្យដែលបានជ្រើសរើស (Selected Block)
                           </span>
-                          <span className="text-[10px] font-mono text-slate-400">
+                          <span className="text-xs font-mono text-slate-500">
                             COORD (X:{Math.round(activeItem.boundingBox.x)} Y:{Math.round(activeItem.boundingBox.y)})
                           </span>
                         </div>
@@ -842,7 +994,7 @@ export default function App() {
                         {/* Beautiful Mistake Visual Breakdown Card */}
                         <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/20 space-y-4">
                           <div className="flex items-center justify-between">
-                            <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md ${
+                            <span className={`text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-md ${
                               activeItem.category === 'spelling' ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/30' :
                               activeItem.category === 'grammar' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/30' :
                               activeItem.category === 'spacing' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/30' :
@@ -857,22 +1009,22 @@ export default function App() {
                               {activeItem.category === 'tone' && '✨ កែសម្រួលទម្រង់ផ្សព្វផ្សាយ (Tone)'}
                               {activeItem.category === 'ok' && '✅ ត្រឹមត្រូវល្អ (No Error)'}
                             </span>
-                            <span className="text-[10px] font-bold text-slate-400">
+                            <span className="text-xs font-bold text-slate-505 dark:text-zinc-400">
                               READABILITY: {activeItem.readabilityRating.toUpperCase()}
                             </span>
                           </div>
 
                           <div className="space-y-2">
                             <div>
-                              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">អត្ថបទដើមពីផ្ទាំងរូបភាព (Original extracted):</span>
-                              <p className="text-base text-slate-500 dark:text-zinc-400 line-through decoration-rose-500/80 decoration-2 font-semibold">
+                              <span className="text-xs uppercase font-bold text-slate-400 block mb-0.5">អត្ថបទដើមពីផ្ទាំងរូបភាព (Original extracted):</span>
+                              <p className="text-base text-slate-500 dark:text-zinc-450 line-through decoration-rose-500/80 decoration-2 font-semibold">
                                 {activeItem.originalText}
                               </p>
                             </div>
 
                             {activeItem.correctedText && (
                               <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm relative group">
-                                <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block mb-0.5">អត្ថបទដែលបានកែតម្រូវ (Suggested):</span>
+                                <span className="text-xs uppercase font-bold text-emerald-600 dark:text-emerald-400 block mb-0.5">អត្ថបទដែលបានកែតម្រូវ (Suggested):</span>
                                 <p className="text-lg font-bold text-slate-900 dark:text-white leading-relaxed">
                                   {activeItem.correctedText}
                                 </p>
@@ -888,14 +1040,14 @@ export default function App() {
                           </div>
 
                           <div>
-                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">ការណែនាំពីបញ្ញាសិប្បនិម្មិត (AI Explanation):</span>
-                            <p className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed bg-[#FAF7F2] dark:bg-zinc-950 p-3 rounded-xl border border-[#ECE7DC] dark:border-zinc-800/40">
+                            <span className="text-xs uppercase font-bold text-slate-400 block mb-1">ការណែនាំពីបញ្ញាសិប្បនិម្មិត (AI Explanation):</span>
+                            <p className="text-xs text-slate-600 dark:text-zinc-350 leading-relaxed bg-[#FAF7F2] dark:bg-zinc-950/40 p-3 rounded-xl border border-[#ECE7DC] dark:border-zinc-800/40">
                               {activeItem.explanation}
                             </p>
                           </div>
 
                           {activeItem.fontReadabilityWarning && (
-                            <div className="bg-amber-50/50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 p-3 rounded-xl border border-amber-100/60 dark:border-amber-900/40 text-[11px] flex gap-2">
+                            <div className="bg-amber-50/50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 p-3 rounded-xl border border-amber-100/60 dark:border-amber-900/40 text-xs flex gap-2">
                               <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
                               <div>
                                 <span className="font-bold">ការដាស់តឿនអំពីហ្វុន៖</span> {activeItem.fontReadabilityWarning}
@@ -905,7 +1057,7 @@ export default function App() {
 
                           {activeItem.alternatives && activeItem.alternatives.length > 0 && (
                             <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 block">ពាក្យជំនួសសម្រាប់ Copywriting (Synonyms / CTA Options):</span>
+                              <span className="text-xs uppercase font-bold text-slate-400 block">ពាក្យជំនួសសម្រាប់ Copywriting (Synonyms / CTA Options):</span>
                               <div className="space-y-1.5">
                                 {activeItem.alternatives.map((alt, aid) => (
                                   <div 
@@ -935,7 +1087,7 @@ export default function App() {
 
                     {/* All Extracted OCR list */}
                     <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-zinc-800/80">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      <span className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block">
                         រាល់ពាក្យដែលបានរកឃើញទាំងអស់ (Detected Segments)
                       </span>
                       <div className="space-y-2">
@@ -950,7 +1102,7 @@ export default function App() {
                             }`}
                           >
                             <div className="max-w-[70%] space-y-1">
-                              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-sm inline-block ${
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-sm inline-block ${
                                 item.category === 'spelling' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' :
                                 item.category === 'ok' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' :
                                 'bg-emerald-100 text-[#4A6D5D] dark:bg-emerald-950/40 dark:text-[#E6EFEA]'
@@ -961,9 +1113,9 @@ export default function App() {
                             </div>
                             <div className="text-right flex items-center gap-2">
                               {item.correctedText ? (
-                                <span className="text-[10px] text-emerald-600 font-bold">កែរួច</span>
+                                <span className="text-xs text-emerald-600 font-bold">កែរួច</span>
                               ) : (
-                                <span className="text-[10px] text-slate-400">ធម្មតា</span>
+                                <span className="text-xs text-slate-400">ធម្មតា</span>
                               )}
                               <ChevronRight className={`w-3.5 h-3.5 ${selectedItemId === item.id ? 'text-[#4A6D5D]' : 'text-slate-400'}`} />
                             </div>
@@ -981,7 +1133,7 @@ export default function App() {
                             ការណែនាំបន្ថែម (AI Recommendations)
                           </h4>
                         </div>
-                        <p className="text-[10px] text-emerald-100 leading-relaxed">
+                        <p className="text-xs text-emerald-100 leading-relaxed">
                           AI បានបង្កើតចំណងជើងថ្មីដែលមានឥទ្ធិពលខ្ពស់ត្រូវនឹងការផ្សព្វផ្សាយនេះ
                         </p>
                         <div className="space-y-2 text-xs">
@@ -1037,7 +1189,7 @@ export default function App() {
                           a.click();
                           document.body.removeChild(a);
                         }}
-                        className="w-full flex items-center justify-center gap-1.5 border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/50 text-slate-500 dark:text-zinc-400 rounded-xl py-2 text-[11px] font-medium transition-all"
+                        className="w-full flex items-center justify-center gap-1.5 border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/50 text-slate-500 dark:text-zinc-400 rounded-xl py-2 text-xs font-medium transition-all"
                       >
                         <Download className="w-3.5 h-3.5 text-slate-400" />
                         <span>ទាញយកទិន្នន័យដើម JSON (Download Raw JSON Backup)</span>
@@ -1052,7 +1204,7 @@ export default function App() {
 
 
           {/* Instant Design Guideline Help Footer representing clean utilities */}
-          <div className="p-4 border-t border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 flex items-center gap-2.5 text-[11px] text-slate-500 dark:text-zinc-400">
+          <div className="p-4 border-t border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 flex items-center gap-2.5 text-xs text-slate-500 dark:text-zinc-400">
             <Info className="w-4 h-4 text-[#4A6D5D] shrink-0" />
             <p className="leading-tight">
               គាំទ្រតួអក្សរខ្មែរយូនីកូដ (Khmer Unicode)
@@ -1181,26 +1333,50 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Layout Advice */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#4A6D5D] mb-1">
-                  📐 វិភាគលើរូបរាង និងការចាត់ចែងអត្ថបទ (Layout & Spatial Review)
-                </h3>
-                <div className="grid grid-cols-2 gap-3 text-xs leading-relaxed">
+              {/* Layout Advice & Signage Law Audit (PDF) */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                <div className="flex justify-between items-center pb-1 border-b border-slate-200">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#4A6D5D]">
+                    📐 វិភាគលើទម្រង់ និងច្បាប់ស្លាកសញ្ញា (Layout & Signage Law Compliance)
+                  </h3>
+                  {analysis.legalCompliance && (
+                    <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                      analysis.legalCompliance.isCompliant ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                    }`}>
+                      {analysis.legalCompliance.isCompliant ? '✓ ស្របច្បាប់' : '⚠️ មិនទាន់ស្របច្បាប់'}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs leading-relaxed">
                   <div className="bg-white border border-slate-150 p-2 rounded-xl">
-                    <span className="text-[9px] text-slate-400 font-bold block uppercase">Spacing distribution</span>
-                    <strong className="text-slate-800 text-[11px] block">{analysis.layoutAdvice.spacingDistributionRating}</strong>
+                    <span className="text-[8px] text-slate-400 font-bold block uppercase">Spacing Rating</span>
+                    <strong className="text-slate-800 text-[10px] block">{analysis.layoutAdvice.spacingDistributionRating}</strong>
                   </div>
                   <div className="bg-white border border-slate-150 p-2 rounded-xl">
-                    <span className="text-[9px] text-slate-400 font-bold block uppercase">Aesthetic matching</span>
-                    <strong className="text-slate-800 text-[11px] block">{analysis.layoutAdvice.aestheticVibeMatch}</strong>
+                    <span className="text-[8px] text-slate-400 font-bold block uppercase">Aesthetic matching</span>
+                    <strong className="text-slate-800 text-[10px] block">{analysis.layoutAdvice.aestheticVibeMatch}</strong>
                   </div>
                 </div>
+
+                {analysis.legalCompliance && (
+                  <div className="bg-white border border-slate-150 p-2.5 rounded-xl space-y-1.5 text-[11px]">
+                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-700">
+                      <span>អនុក្រឹត្យ ១៣២ (Signage Sub-decree 132):</span>
+                      <span className="text-rose-500 font-mono">ពិន្ទុ៖ {analysis.legalCompliance.complianceScore}%</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 text-[9px] text-slate-600">
+                      <div>• លំដាប់អក្សរខ្មែរ (Above Foreign): {analysis.legalCompliance.hasKhmerAboveForeign ? "✅ ត្រឹមត្រូវ" : "❌ មិនត្រឹមត្រូវ"}</div>
+                      <div>• ទំហំអក្សរខ្មែរ (Scale ≥ 2x): {analysis.legalCompliance.isKhmerSizeCompliant ? "✅ ត្រឹមត្រូវ" : "❌ មិនត្រឹមត្រូវ"}</div>
+                    </div>
+                  </div>
+                )}
+
                 {analysis.layoutAdvice.hasOverlapIssue && (
                   <div className="bg-rose-50 text-rose-800 border border-rose-200 p-2 rounded-xl text-[10px] flex gap-1.5">
                     <span>⚠️</span>
                     <div>
-                      <strong>កំហុសទម្លាក់បន្ទាត់ ឬទំហំត្រួតស៊ីគ្នា (Overlap Issue Detected):</strong>
+                      <strong>Overlap Issue Detected:</strong>
                       <p>{analysis.layoutAdvice.overlapDetails}</p>
                     </div>
                   </div>

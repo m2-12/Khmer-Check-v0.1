@@ -19,6 +19,14 @@ export interface CorrectionItem {
   fontReadabilityWarning: string | null;
 }
 
+export interface LegalCompliance {
+  isCompliant: boolean;
+  hasKhmerAboveForeign: boolean;
+  isKhmerSizeCompliant: boolean;
+  complianceScore: number;
+  complianceWarnings: string[];
+}
+
 export interface PosterAnalysis {
   id: string; // unique ID for session / history
   fileName: string;
@@ -37,6 +45,7 @@ export interface PosterAnalysis {
     aestheticVibeMatch: string; // e.g. "Modern youth-focused food promotion"
   };
   marketingHooks: string[]; // List of AI Copywriting suggestions
+  legalCompliance?: LegalCompliance; // Cambodian official signage laws auditor check
   items: CorrectionItem[];
 }
 

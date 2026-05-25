@@ -72,41 +72,64 @@ async function startServer() {
         ? `Additionally, strictly respect these custom corporate/brand dictionary rules during correction and vocabulary replacement:\n${customRules.map((r: any, i: number) => `- Replace "${r.term}" with "${r.replacement}" (Category: ${r.category})`).join("\n")}`
         : "";
 
-      // Construct a highly detailed OCR + Grammar checking instruction set for Gemini
-      const systemInstruction = `You are a professional Khmer language expert, senior typographer, and elite digital poster copywriter/proofreader.
-Your task is to analyze the uploaded poster/banner/flyer image, capture ALL visible text (in Khmer and any auxiliary English or numeric layers), map their coordinates, and run a rigorous grammar, spelling, spacing, and typographic audit.
+      // Construct an extremely rigorous OCR and legal compliance audit prompt for Gemini
+      const systemInstruction = `You are an elite, professional Khmer language academician, senior typographer, regulatory sign-board inspector, legal advertising compliance auditor, and world-class digital poster editor.
+Your primary task is to perform an exceptionally accurate OCR scan, linguistic correction, and full legal compliance audit of the uploaded signboard, poster, banner, or advertising flyer image.
 
-CRITICAL LINGUISTIC & TYPOGRAPHIC DIRECTIVES:
-1. SOURCING & DICTIONARY AUTHORITY:
-   - Your primary spelling reference must be Samdech Chuon Nath Dictionary (វចនានុក្រមសម្ដេចព្រះសង្ឃរាជ ជួន ណាត).
-   - Ensure consonant subscript sequences (ជើងអក្សរ) are correctly specified. Catch lazy shorthand phonetic patterns and correct them (e.g. 'ផ្នើ' vs 'ផ្ញើ').
+CRITICAL DIRECTIVES FOR HIGH-PRECISION KHMER OCR CHARACTER RECOGNITION:
+1. CHARACTERS AND GLYPH DETECTION:
+   - Perform a microscopic visual pass on the image. Khmer characters are complex, featuring dense subscripts (ជើងអក្សរ) and multiple overlapping vowels or diacritics.
+   - Guard against lookalike Khmer character confusion. Thoroughly distinguish:
+     * 'ត' (to) vs 'គ' (ko)
+     * 'ផ' (pho) vs 'ជ' (cho)
+     * 'ដ' (do) vs 'ឌ' (do) vs 'ត' (to)
+     * 'ធ' (tho) vs 'យ' (yo)
+     * 'ឆ' (cho) vs 'ធ' (tho)
+     * 'រ' (ro) vs 'វ' (vo)
+   - Capture even the smallest auxiliary details such as telephone numbers (e.g. 012 345 678), prices ($2.5, 10000៛), percentages, addresses, or tiny brand sub-labels.
 
-2. TYPOGRAPHY AND UNICODE ORDERING:
-   - Examine the hidden rendering mechanics. Designers often type Khmer glyphs incorrectly in the background, causing broken diacritics, orphaned subscripts, or overlapping symbols (evident visually by red blocks or a gray dotted circle ◌ under vowels or diacritics).
-   - Strict Unicode character sequence: Consonant + Subscript + Robat + Vowel (Srak) + Diacritic. Alert if visual placement seems correct but the character stream is invalid.
+2. UNICODE TYPOGRAPHIC ORDERING & BROKEN DIACRITICS:
+   - Examine how the Khmer characters are structurally typed. Look out for font rendering failures shown by a dotted circle '◌' (e.g., ◌ាំ, ◌ឹ, ◌ះ), which indicates the compositor typed diacritics in the incorrect order or used incompatible fonts. 
+   - The correct typed stream must follow standard Khmer Unicode sequence: Base Consonant + Subscript Consonant (ជើង) + Vowels (ស្រៈនិស្ស័យ) + Tone/Diacritic marks (e.g. បន្តក់, របាទ, ធ្មេញកណ្តុរ, វិរាម, យុគលពិន្ទុ, or ទណ្ឌឃាត).
+   - If a broken diacritic sign '◌' is visually detected in the rendering, classify this under 'typography' or 'spelling' category and explicitly explain how to fix the typing stream.
 
-3. SPACING & PHRASING EXCELLENCE (ការដកឃ្លា):
-   - Khmer does not utilize spaces between every word, but rather between syntactic clauses, ideas, and punctuation.
-   - Detect "Word Splitting" errors: when designers accidentally put empty spaces in the middle of a continuous word due to automated line wrapping or manual typesetting (e.g. 'កា ហ្វេរ' or 'សេ វាកម្ម' instead of 'កាហ្វេ' or 'សេវាកម្ម').
-   - Identify "Missing Breathability" errors: blocks with zero spaces that look excessively packed and require elegant structural spacing to be visually pleasing on a high-end designer banner.
+3. SPACING & BREATHABILITY AUDIT (ការដកឃ្លា):
+   - In Khmer script, spaces are used to separate clauses, phrases, or ideas, not individual words.
+   - Detect "Word Splitting" spacing mistakes: when designers insert spaces inside a single logical word (e.g., typing 'កា ហ្វេ' instead of 'កាហ្វេ', or 'លំ ដាប់' instead of 'លំដាប់'). This looks clumsy and is incorrect.
+   - Detect "Breathability" errors: blocks of text that are crowded with zero spaces, causing reading fatigue. Suggest inserting subtle, elegant breaks where natural pauses occur.
 
-4. COPYWRITING & MARKETING TONE:
-   - Provide highly catchy, polished, professional copywriting alternatives (headings, subheadings, or hooks) that better fit the visual theme of the poster and respect proper Khmer syntax.
+4. DICTIONARY AUTHORITATIVE STANDARD:
+   - Your absolute guide for spelling and grammar is the official Samdech Chuon Nath Dictionary (វចនានុក្រមសម្ដេចព្រះសង្ឃរាជ ជួន ណាត). Do not tolerate lazy modern colloquial spellings (e.g. correct 'សេវាកម្ម', not 'សេវាគ្គម'; 'សូមស្វាគមន៍', not 'សូមស្វាគមន៌'; 'អ៊ីនធឺណិត', not 'អ៊ិនធើណេត').
 
-5. METICULOUS DOUBLE-PASS IMAGE SCAN (OCR PRECISENESS):
-   - You must scan the entire visual field from top-to-bottom and left-to-right.
-   - DO NOT omit small text markers like phone numbers (e.g., 012-345-678), prices ($1.5, 5000៛), percentages (50%), addresses, hashtags, or social handles. Capture and audit them regardless of size.
-   - Carefully map boundingbox coordinates as percentage offsets relative to the image size (x: starting point from left, y: starting point from top, width: text width, height: text height).
+CRITICAL DIRECTIVES FOR CAMBODIAN SIGNAGE & ADVERTISING LAW compliance (អនុក្រឹត្យលេខ ១៣២ ស្ដីពីការផ្សាយពាណិជ្ជកម្ម):
+According to Cambodian Sub-decree No. 132/Ministry of Commerce/Ministry of Information regulations on advertising signboards:
+1. LANGUAGE PLACEMENT (លំដាប់លំដោយអក្សរ):
+   - Khmer language text must physically be placed ABOVE or BEFORE any foreign script/languages (English, Chinese, etc.) on the canvas.
+   - Look at the bounding box Y-coordinates. If any English text block is physically higher than its corresponding Khmer translation, header, or descriptor, mark "hasKhmerAboveForeign" as false.
+2. VISUAL HEIGHT AND SIZE SCALE (ទំហំអក្សរខ្មែរ):
+   - The physical visual font size, height, and display scale of the Khmer letters must be AT LEAST TWICE (2x) as large as any foreign script.
+   - Inspect the bounding box "height" parameter. if the Khmer text block's height is not at least twice the height of the foreign text on the same visual plane, mark "isKhmerSizeCompliant" as false.
+3. BRAND TRANSLITERATION REQUIREMENT (សញ្ញាកំណត់អក្សរខ្មែរលើស្លាកយីហោ):
+   - Any foreign brand names, slogans, or product descriptors (e.g., 'Special Promotion') must be accompanied by accurate Khmer descriptors or transliteration text placed right above them (e.g. 'ការផ្សព្វផ្សាយពិសេស' or 'ប្រម៉ូសិនពិសេស' above 'Special Promotion').
+4. DETAILED COMPLIANCE DIAGNOSTICS:
+   - Calculate an overall "complianceScore" (0 to 100). Subtract 25 points for each severe infraction (infractions include: Khmer not on top, Khmer size scale too small, Khmer spelling error, or broken diacritics).
+   - Generate extremely informative, formal, and authoritative Khmer warning strings in "complianceWarnings" citing Sub-decree 132 requirements so that developers or businesses know exactly how to revise their design to obtain official municipal and ministerial advertising permits.
+
+HIGH-PRECISION OCR EXTRACTION INSTRUCTIONS (IMPORTANT FOR MAPPING):
+- You must list ALL detected text blocks (both Khmer and English) as individual items in the 'items' array.
+- For English words or phrases (e.g. 'SALE', 'WELCOME', 'OPEN NOW'), set their category to 'ok' (or 'tone' if it needs brand transliteration) and output their coordinates. This is critical for the client to render them.
+- Ensure the bounding box fields (x, y, width, height) are extremely precise percentages (0 to 100). If the text is centered near the top, y should be low (e.g., 5 to 25). If it's near the bottom, y should be high (e.g., 70 to 95).
+- Always map the relative positions correctly. If Khmer text is at y: 15 and English translation is at y: 25, then Khmer is correctly on top.
 
 ${rulesPromptSegment}
 
-Return the entire analysis STRICTLY formatted according to the provided JSON Schema. Do not wrap in markdown text blocks outside the JSON itself. Make explanations extremely descriptive. Ensure all text outputs use normalized standard Khmer Unicode.`;
+Return the analysis STRICTLY formatted according to the provided JSON Schema. Do not wrap in markdown text blocks outside the JSON itself. Make explanations extremely descriptive. Ensure all text outputs use normalized standard Khmer Unicode.`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.5-flash",
         contents: [
           imagePart,
-          { text: "Perform the comprehensive Khmer OCR and deep grammar check on this graphic. Analyze text placements, spellings, tones, and provide better copywriting options." }
+          { text: "Perform the comprehensive Khmer OCR, deep grammar check, and legal signage compliance audit on this graphic. Analyze text placements, dimensions, spellings, tones, and provide better copywriting options." }
         ],
         config: {
           systemInstruction,
@@ -137,6 +160,21 @@ Return the entire analysis STRICTLY formatted according to the provided JSON Sch
                 type: Type.ARRAY,
                 items: { type: Type.STRING },
                 description: "3 highly engaging, catchy Khmer ad headlines/hook suggestions suited for this poster's niche"
+              },
+              legalCompliance: {
+                type: Type.OBJECT,
+                properties: {
+                  isCompliant: { type: Type.BOOLEAN, description: "True if the poster perfectly complies with Cambodian signage regulations (Khmer text is on top, Khmer is at least twice as large as foreign text, and there are NO critical spelling mistakes)." },
+                  hasKhmerAboveForeign: { type: Type.BOOLEAN, description: "True if Khmer text layout is physically placed above any detected English or foreign language text." },
+                  isKhmerSizeCompliant: { type: Type.BOOLEAN, description: "True if Khmer letters have a visual font-scale (bounding box height or weight) that is at least twice (2x) as large as the foreign letter equivalents." },
+                  complianceScore: { type: Type.INTEGER, description: "Compliance rating from 0 to 100 based on standard signage rules (100 is fully compliant, drops if rules fail)." },
+                  complianceWarnings: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                    description: "Specific warnings indicating design flaws and legal signage rule violations in Cambodian Khmer / English (e.g., 'អក្សរខ្មែរត្រូវតែធំជាង ២ ដងនៃអក្សរបរទេស')"
+                  }
+                },
+                required: ["isCompliant", "hasKhmerAboveForeign", "isKhmerSizeCompliant", "complianceScore", "complianceWarnings"]
               },
               items: {
                 type: Type.ARRAY,
@@ -174,7 +212,7 @@ Return the entire analysis STRICTLY formatted according to the provided JSON Sch
                 }
               }
             },
-            required: ["overallStats", "layoutAdvice", "marketingHooks", "items"]
+            required: ["overallStats", "layoutAdvice", "marketingHooks", "legalCompliance", "items"]
           }
         }
       });
@@ -217,21 +255,25 @@ Return the entire analysis STRICTLY formatted according to the provided JSON Sch
         ? `Adhere to corporate terminology definitions: ${brandVocabulary.map((v: any) => `replace "${v.term}" with "${v.replacement}"`).join(", ")}.`
         : "";
 
-      const systemInstruction = `You are an elite Khmer Copywriter, specialized in marketing, brand design, and editorial proofing.
-Your goal is to optimize Khmer copy to make it exceptionally professional, punchy, grammatical, and suited for high-impact visual design.
+      const systemInstruction = `You are an elite Khmer Copywriter and senior lexicographer, specialized in marketing, brand design, and editorial proofing.
+Your goal is to optimize or spellcheck Khmer copy to make it exceptionally professional, grammatical, and suited for high-impact visual design.
 
-CRITICAL COPYWRITING DIRECTIVES:
-- Dictated Tone Matching: If "luxury" is chosen, utilize high-register elegant vocabulary (e.g., "ជូន" instead of "ថែម", "លំដាប់អន្តរជាតិ"). If "youthful" is chosen, craft trendy, upbeat, yet grammatical expressions. If "formal", strictly respect national spelling standards (Chuon Nath Dictionary).
+CRITICAL DIRECTIVES:
+- Dictated Tone Matching: 
+  * If "spellcheck" is chosen: Do NOT rewrite, restructure, or renew the user's text into alternative copywriting slogans or creative ad hooks. Do NOT alter the marketing tone or core content. Your SOLE action is to examine the text for spelling mistakes, subscript errors, incorrect Khmer-Unicode sequences, or accidental spaces inside words (Word Splitting errors). Return the exact same sentence structure and text, corrected ONLY for spelling errors and correct spacing.
+  * If "luxury" is chosen, utilize high-register elegant vocabulary (e.g., "ជូន" instead of "ថែម", "លំដាប់អន្តរជាតិ").
+  * If "youthful" is chosen, craft trendy, upbeat, yet grammatical expressions.
+  * If "formal", strictly respect national spelling standards (Chuon Nath Dictionary).
 - Visual Length Economy: If lengthMode is "shorten", extract the absolute core message and formulate it into a punchy slogan to fit crowded flyers.
 - Spacing & Rhythm: Ensure correct semantic phrasing and appropriate breathing spaces (ការដកឃ្លា) to guarantee instant readability.
 
 ${vocabularyInstructions}
 
 Provide a JSON object containing:
-- "rewrittenText": the newly adjusted, polished copywriting in Khmer Unicode.
-- "explanation": a detailed semantic explanation in native Khmer/English explaining your linguistic improvements and spacing choices.
-- "score": a number from 0 to 100 assessing the marketing force.
-- "benefits": a string array highlighting 2 reasons why this rewritten slogan hits target user emotions.`;
+- "rewrittenText": the newly adjusted, polished copywriting in Khmer Unicode (or the spellchecked original text).
+- "explanation": a detailed semantic explanation in native Khmer/English explaining your linguistic improvements, spelling corrections, or spacing choices.
+- "score": a number from 0 to 100 assessing the correctness and language quality.
+- "benefits": a string array highlighting 2 reasons why these edits (like spelling corrections or spacing) improve overall professional print/digital compliance.`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.5-flash",
@@ -308,6 +350,16 @@ function getDemoAnalysis(mimeType: string, customRules: any[]): any {
       "ឱកាសមាស! ទិញ ១ ថែម ១ សម្រាប់ថាមពលពេញមួយថ្ងៃ",
       "ប្រញាប់ឡើង! កាហ្វេក្តៅឧណ្ហៗ ទិញ ១ ថែម ១ មានកំណត់"
     ],
+    legalCompliance: {
+      isCompliant: false,
+      hasKhmerAboveForeign: true,
+      isKhmerSizeCompliant: false,
+      complianceScore: 68,
+      complianceWarnings: [
+        "អក្សរខ្មែរ 'ទិញ1ថែម1 ឆាប់ឡើង!!' មានទំហំតូចជាង ឬស្មើនឹងអក្សរអង់គ្លេស 'COFFEE & TEA'។ តាមច្បាប់ផ្សព្វផ្សាយរបស់ព្រះរាជាណាចក្រកម្ពុជា អក្សរខ្មែរត្រូវតែមានទំហំធំជាងអក្សរបរទេសយ៉ាងតិច ២ ដង (2x larger layout size requirement).",
+        "រកឃើញកំហុសអក្ខរាវិរុទ្ធលើពាក្យ 'ហាងយើងខ្ញុំមានលក់បាយ' សរសេរខុសស្រះ ុំ (ជាន់គ្នាស្រះ)។ ស្លាកផ្សព្វផ្សាយសាធារណៈមិនត្រូវមានអក្ខរាវិរុទ្ធខុសឡើយដើម្បីជៀសវាងការផាកពិន័យរបស់ក្រសួងព័ត៌មាន។"
+      ]
+    },
     items: [
       {
          id: "item_1",
@@ -357,6 +409,20 @@ function getDemoRewrite(text: string, tone: string, lengthMode: string): any {
   let explanation = "Adjusted according to formal spacing standards of the Khmer script.";
   let benefits = ["Evokes professionalism", "Ensures high grammatical accuracy"];
   let score = 90;
+
+  if (tone === "spellcheck") {
+    rewrittenText = text
+      .replace(/សេវាគ្គម/g, 'សេវាកម្ម')
+      .replace(/សូមស្វាគមន៌/g, 'សូមស្វាគមន៍')
+      .replace(/អ៊ិនធើណេត/g, 'អ៊ីនធឺណិត')
+      .replace(/ខនសឺត/g, 'ការប្រគំតន្ត្រី')
+      .replace(/មហោស្រប/g, 'មហោស្រព')
+      .replace(/ព្រីថ្លៃដឹក/g, 'ដឹកជញ្ជូនឥតគិតថ្លៃ');
+    explanation = "បានត្រួតពិនិត្យ និងកែតម្រូវអក្ខរាវិរុទ្ធខ្មែរឲ្យស្របតាមវចនានុក្រមជាតិ សម្ដេចព្រះសង្ឃរាជ ជួន ណាត ដោយរក្សាទម្រង់ប្រយោគ និងអត្តសញ្ញាណដើមរបស់អ្នកទាំងស្រុង។";
+    benefits = ["កែតម្រូវភាពំខុសឆ្គងអក្ខរាវិរុទ្ធ", "រក្សាទម្រង់អត្ថបទដើមទាំងស្រុង"];
+    score = 98;
+    return { rewrittenText, explanation, score, benefits };
+  }
 
   if (text.includes("ទិញ")) {
     if (tone === "luxury") {

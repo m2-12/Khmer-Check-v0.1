@@ -108,7 +108,7 @@ export default function CanvaWorkspace({
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
-            <span className="text-[11px] font-mono font-bold w-12 text-center text-[#2D3330] dark:text-zinc-300">
+            <span className="text-xs font-mono font-bold w-12 text-center text-[#2D3330] dark:text-zinc-300">
               {zoom}%
             </span>
             <button
@@ -178,8 +178,8 @@ export default function CanvaWorkspace({
                     title={`[${item.category}] ${item.originalText}`}
                   >
                     {/* Bounding box tooltip */}
-                    <div className="opacity-0 group-hover:opacity-100 absolute -top-10 left-1/2 transform -translate-x-1/2 bg-zinc-950 text-white text-[10px] px-2.5 py-1.5 rounded-lg shadow-xl pointer-events-none whitespace-nowrap z-20 transition-all font-sans leading-none flex items-center gap-1.5 border border-zinc-800">
-                      <span className="font-sans bg-[#DDAE3B] px-1.5 py-0.5 rounded text-[9px] uppercase font-bold text-zinc-950">
+                    <div className="opacity-0 group-hover:opacity-100 absolute -top-10 left-1/2 transform -translate-x-1/2 bg-zinc-950 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-xl pointer-events-none whitespace-nowrap z-20 transition-all font-sans leading-none flex items-center gap-1.5 border border-zinc-800">
+                      <span className="font-sans bg-[#DDAE3B] px-1.5 py-0.5 rounded text-xs uppercase font-bold text-zinc-950 animate-pulse">
                         {getCategoryLabel(item.category)}
                       </span>
                       <span className="font-bold truncate max-w-[140px]">{item.originalText}</span>
@@ -224,7 +224,7 @@ export default function CanvaWorkspace({
                 ទាញរូបភាពមកដាក់ទីនេះ ឬ ចុចដើម្បីស្វែងរកឯកសារ
               </h4>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2 max-w-md leading-relaxed font-sans">
-                គាំទ្ររាល់ឯកសាររូបភាពប្រភេទ JPEG, PNG, ឬ WebP។ មានប្រសិទ្ធភាពខ្ពស់លើរូបថតដែលមានពុម្ពអក្សរច្បាស់ល្អ។
+                គាំទ្ររាល់ឯកសាររូបភាពប្រភេទ JPEG, PNG, ឬ WebP។ មានប្រសិទ្ធភាពខ្ពស់លើរូបថតដែលមានពុម្ពអក្សរច្បាស់ល្អ (ក៏អាចផ្ដិតយក ឬថតចម្លងរូបភាព រួចចុច Ctrl/⌘+V ដើម្បីបង្ហោះផងដែរ)។
               </p>
 
               <button className="mt-5 bg-[#4A6D5D] hover:bg-[#3E5C4E] dark:bg-[#324B3F] dark:hover:bg-emerald-800 text-[#FAF7F2] font-semibold rounded-xl px-5 py-2.5 text-xs shadow-xs transition-all duration-200 hover:scale-102 active:scale-98">

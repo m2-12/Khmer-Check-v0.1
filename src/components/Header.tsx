@@ -28,9 +28,9 @@ export default function Header({
         </div>
         <div className="text-left">
           <h1 className="text-base sm:text-lg font-heading font-bold tracking-tight text-[#2D3330] dark:text-zinc-100 flex items-center gap-2">
-            អក្ខរាវិរុទ្ធខ្មែរ <span className="font-sans text-[10px] sm:text-xs bg-[#EED8A1] dark:bg-amber-950/40 text-[#7D5B1A] dark:text-amber-400 font-bold px-2 py-0.5 rounded-full border border-[#DDAE3B]/20 whitespace-nowrap">V0.1</span>
+            អក្ខរាវិរុទ្ធខ្មែរ <span className="font-sans text-xs bg-[#EED8A1] dark:bg-amber-950/40 text-[#7D5B1A] dark:text-amber-400 font-bold px-2.5 py-0.5 rounded-full border border-[#DDAE3B]/20 whitespace-nowrap">V0.1</span>
           </h1>
-          <p className="text-[10px] font-sans uppercase font-bold tracking-widest text-[#587E6A] dark:text-zinc-500">Khmer Spell Checker</p>
+          <p className="text-xs font-sans uppercase font-bold tracking-widest text-[#587E6A] dark:text-zinc-500">Khmer Spell Checker</p>
         </div>
       </div>
 
@@ -79,7 +79,7 @@ export default function Header({
           <div className="hidden md:flex items-center bg-[#E6EFEA] dark:bg-emerald-950/20 border border-[#CEE2D7] dark:border-emerald-900/40 px-3 py-1.5 rounded-lg text-[#324B3F] dark:text-emerald-300">
             <CheckCircle className="w-4 h-4 text-[#4A6D5D] mr-2 shrink-0 animate-bounce" />
             <div className="text-left leading-tight">
-              <div className="text-[9px] font-mono font-bold text-[#587E6A]">OCR CONFIDENCE</div>
+              <div className="text-xs font-mono font-bold text-[#557866] dark:text-emerald-400">OCR CONFIDENCE</div>
               <div className="text-xs font-bold font-heading">{ocrConfidence}% Accurate</div>
             </div>
           </div>
