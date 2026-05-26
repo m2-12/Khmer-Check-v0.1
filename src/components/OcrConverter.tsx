@@ -514,7 +514,7 @@ export default function OcrConverter({ onPasteToTone }: OcrConverterProps) {
                   <div className="flex-1 flex flex-col">
                     <div className="flex justify-between items-center mb-2">
                       <label className="text-[11px] font-bold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">
-                        អ្នកអាចពិនិត្យ ឬកែសម្រួលអត្ថបទខាងក្រោម (Editable Text)៖
+                        អ្នកអាចពិនិត្យ ឬកែសម្រួលអត្ថបទខាងក្រោម (EDITABLE TEXT)៖
                       </label>
                       
                       {!isAiRewriting && !showAiDiff && (
@@ -537,42 +537,45 @@ export default function OcrConverter({ onPasteToTone }: OcrConverterProps) {
                   </div>
 
                   {/* Actions to interact with external modules */}
-                  <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex flex-col md:flex-row gap-2.5">
+                  <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 grid grid-cols-3 gap-2">
                     <button
                       onClick={handleAiSpellcheckAndRewrite}
                       disabled={isAiRewriting}
-                      className="flex-1 flex items-center justify-center gap-2 bg-[#4A6D5D] hover:bg-[#3E5C4E] disabled:bg-zinc-250 dark:disabled:bg-zinc-850 text-white py-3 px-4 rounded-xl text-xs font-bold transition-all duration-250 cursor-pointer shadow-xs"
+                      className="flex flex-col items-center justify-center text-center p-2 rounded-xl bg-[#4A6D5D] hover:bg-[#3E5C4E] disabled:bg-zinc-250 dark:disabled:bg-zinc-850 text-white transition-all cursor-pointer shadow-xs min-h-[82px] select-none text-[10.5px]"
                     >
                       {isAiRewriting ? (
                         <>
-                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
-                          <span>កំពុងពិនិត្យអក្សរ (Spellchecking)...</span>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mb-1.5" />
+                          <span className="text-[9.5px] uppercase font-bold tracking-wider">កំពុងវិភាគ...</span>
                         </>
                       ) : (
                         <>
-                          <Sparkles className="w-4 h-4 shrink-0" />
-                          <span>🪄 ពិនិត្យអក្ខរាវិរុទ្ធដោយ AI (AI Spellcheck Suggestion)</span>
+                          <Sparkles className="w-4 h-4 mb-1 text-emerald-300 animate-pulse shrink-0" />
+                          <span className="text-[10.5px] leading-tight font-bold">🪄 ពិនិត្យអក្ខរាវិរុទ្ធដោយ AI</span>
+                          <span className="text-[8.5px] text-emerald-100/85 font-medium mt-0.5 leading-none">(AI Spellcheck Suggestion)</span>
                         </>
                       )}
                     </button>
 
-                    {previousText && (
-                      <button
-                        onClick={handleUndo}
-                        className="px-4 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl text-xs font-bold transition-colors shrink-0 flex items-center justify-center gap-1 cursor-pointer"
-                        title="ត្រឡប់ទៅការកែប្រែមុន (Undo)"
-                      >
-                        <span>↩️ ត្រឡប់ក្រោយ (Undo/Redo)</span>
-                      </button>
-                    )}
+                    <button
+                      onClick={handleUndo}
+                      disabled={!previousText}
+                      className="flex flex-col items-center justify-center text-center p-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200/60 dark:border-zinc-800/65 text-zinc-700 dark:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-100 transition-all cursor-pointer min-h-[82px] select-none text-[10.5px]"
+                      title="ត្រឡប់ទៅការកែប្រែមុន (Undo/Redo)"
+                    >
+                      <span className="text-sm mb-1 select-none">↩️</span>
+                      <span className="text-[10.5px] leading-tight font-bold">ត្រឡប់ក្រោយ</span>
+                      <span className="text-[8.5px] text-zinc-400/90 font-bold mt-0.5 leading-none">(Undo/Redo)</span>
+                    </button>
 
                     <button
                       onClick={() => onPasteToTone(extractedText)}
-                      className="flex-1 flex items-center justify-center gap-2 bg-[#E6EFEA] hover:bg-[#CEE2D7] dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 text-[#324B3F] dark:text-emerald-300 py-3 px-4 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer"
+                      disabled={!extractedText.trim()}
+                      className="flex flex-col items-center justify-center text-center p-2 rounded-xl bg-[#E6EFEA] hover:bg-[#CEE2D7] dark:bg-emerald-950/25 dark:hover:bg-emerald-950/45 text-[#324B3F] dark:text-emerald-300 border border-emerald-250/20 dark:border-emerald-850/20 transition-all cursor-pointer min-h-[82px] select-none text-[10.5px]"
                     >
-                      <CornerDownLeft className="w-4 h-4 shrink-0 text-[#4A6D5D] dark:text-emerald-400" />
-                      <span>បញ្ជូនទៅផ្ទាំង "កែសម្រួលឃ្លា" (Paste to Tone Editor)</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <CornerDownLeft className="w-4 h-4 mb-1 text-[#4A6D5D] dark:text-emerald-400 shrink-0" />
+                      <span className="text-[10.5px] leading-tight font-bold">បញ្ជូនទៅ "កែសម្រួលឃ្លា"</span>
+                      <span className="text-[8.5px] text-[#4A6D5D] dark:text-[#E6EFEA]/80 font-bold mt-0.5 leading-none">(Paste to Tone Editor)</span>
                     </button>
                   </div>
                 </div>

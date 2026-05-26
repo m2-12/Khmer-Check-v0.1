@@ -1,25 +1,30 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-// Ensure the API Key of Gemini is present or log a helpful message
-const apiKey = process.env.GEMINI_API_KEY || "";
-if (!apiKey) {
-  console.warn("⚠️ Warning: GEMINI_API_KEY is not defined in the environment variables. Mock fallbacks will be used.");
-}
+const getApiKey = () => process.env.GEMINI_API_KEY || "";
 
-const ai = new GoogleGenAI({
-  apiKey: apiKey || "MOCK_KEY_IF_NOT_CONFIGURED",
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
+let aiClient: GoogleGenAI | null = null;
+let lastApiKey: string | null = null;
+
+function getGeminiClient(): GoogleGenAI {
+  const currentKey = getApiKey();
+  if (!aiClient || lastApiKey !== currentKey) {
+    lastApiKey = currentKey;
+    aiClient = new GoogleGenAI({
+      apiKey: currentKey || "MOCK_KEY_IF_NOT_CONFIGURED",
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
-});
+  return aiClient;
+}
 
 const app = express();
 const PORT = 3000;
@@ -30,10 +35,11 @@ app.use(express.urlencoded({ limit: "25mb", extended: true }));
 
   // API Route for healthcheck
   app.get("/api/health", (req, res) => {
+    const key = getApiKey();
     res.json({ 
       status: "ok", 
       time: new Date().toISOString(),
-      hasApiKey: !!apiKey && apiKey !== "MOCK_KEY_IF_NOT_CONFIGURED"
+      hasApiKey: !!key && key !== "MOCK_KEY_IF_NOT_CONFIGURED"
     });
   });
 
@@ -52,7 +58,8 @@ app.use(express.urlencoded({ limit: "25mb", extended: true }));
         return res.json({ ...getDemoAnalysis(mimeType, customRules), isMock: true });
       }
 
-      if (!apiKey || apiKey === "MOCK_KEY_IF_NOT_CONFIGURED") {
+      const key = getApiKey();
+      if (!key || key === "MOCK_KEY_IF_NOT_CONFIGURED") {
         // Safe fallback demo data if no key is configured yet
         return res.json({ ...getDemoAnalysis(mimeType, customRules), isMock: true });
       }
@@ -124,7 +131,7 @@ ${rulesPromptSegment}
 
 Return the analysis STRICTLY formatted according to the provided JSON Schema. Do not wrap in markdown text blocks outside the JSON itself. Make explanations extremely descriptive. Ensure all text outputs use normalized standard Khmer Unicode.`;
 
-      const response = await ai.models.generateContent({
+      const response = await getGeminiClient().models.generateContent({
         model: "gemini-3.5-flash",
         contents: [
           imagePart,
@@ -245,7 +252,8 @@ Return the analysis STRICTLY formatted according to the provided JSON Schema. Do
         return res.status(400).json({ error: "No target text supplied." });
       }
 
-      if (!apiKey || apiKey === "MOCK_KEY_IF_NOT_CONFIGURED") {
+      const key = getApiKey();
+      if (!key || key === "MOCK_KEY_IF_NOT_CONFIGURED") {
         // Mock fallback if environment key is blank
         return res.json({ ...getDemoRewrite(text, tone, lengthMode), isMock: true });
       }
@@ -274,7 +282,7 @@ Provide a JSON object containing:
 - "score": a number from 0 to 100 assessing the correctness and language quality.
 - "benefits": a string array highlighting 2 reasons why these edits (like spelling corrections or spacing) improve overall professional print/digital compliance.`;
 
-      const response = await ai.models.generateContent({
+      const response = await getGeminiClient().models.generateContent({
         model: "gemini-3.5-flash",
         contents: `Input Text: "${text}"\nTarget Tone: "${tone}"\nLength Constraint: "${lengthMode}"`,
         config: {
@@ -313,6 +321,7 @@ Provide a JSON object containing:
   // Mount Vite middleware in development (when process.env.NODE_ENV !== "production")
   async function configureServer() {
     if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+      const { createServer: createViteServer } = await import("vite");
       const vite = await createViteServer({
         server: { middlewareMode: true },
         appType: "spa",
