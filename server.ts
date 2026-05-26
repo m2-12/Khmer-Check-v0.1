@@ -21,13 +21,12 @@ const ai = new GoogleGenAI({
   }
 });
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const app = express();
+const PORT = 3000;
 
-  // Enlarge client payload limit for base64 image uploads
-  app.use(express.json({ limit: "25mb" }));
-  app.use(express.urlencoded({ limit: "25mb", extended: true }));
+// Enlarge client payload limit for base64 image uploads
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ limit: "25mb", extended: true }));
 
   // API Route for healthcheck
   app.get("/api/health", (req, res) => {
@@ -312,24 +311,29 @@ Provide a JSON object containing:
   });
 
   // Mount Vite middleware in development (when process.env.NODE_ENV !== "production")
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+  async function configureServer() {
+    if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else if (!process.env.VERCEL) {
+      const distPath = path.join(process.cwd(), 'dist');
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
+
+    if (!process.env.VERCEL) {
+      app.listen(PORT, "0.0.0.0", () => {
+        console.log(`🚀 Khmer Proofing Workspace Server running securely on http://0.0.0.0:${PORT}`);
+      });
+    }
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Khmer Proofing Workspace Server running securely on http://0.0.0.0:${PORT}`);
-  });
-}
+  configureServer();
 
 // Demo fallbacks to support seamless preview experience if API variables are empty
 function getDemoAnalysis(mimeType: string, customRules: any[]): any {
@@ -450,4 +454,4 @@ function getDemoRewrite(text: string, tone: string, lengthMode: string): any {
   return { rewrittenText, explanation, score, benefits };
 }
 
-startServer();
+export default app;
